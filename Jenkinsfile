@@ -17,7 +17,7 @@ pipeline {
         SONARQUBE_CREDENTIALS = "sonar-token"
 
         // Kubernetes
-        KUBECONFIG_CREDENTIALS = "k3s-kubeconfig"
+        KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
 
         // Email
         EMAIL_RECIPIENTS = "almastvx@gmail.com"
