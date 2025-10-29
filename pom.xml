@@ -117,16 +117,17 @@
 	</build>
 
 
- <distributionManagement>
-  <repository>
-    <id>maven-releases</id>
-    <url>http://35.154.18.177:8081/repository/maven-releases/</url>
-  </repository>
-  <snapshotRepository>
-    <id>maven-snapshots</id>
-    <url>http://35.154.18.177:8081/repository/maven-snapshots/</url>
-  </snapshotRepository>
+<distributionManagement>
+    <repository>
+        <id>nexus-releases</id>
+        <url>http://nexus.local.lab:8081/repository/maven-releases/</url>
+    </repository>
+    <snapshotRepository>
+        <id>nexus-snapshots</id>
+        <url>http://nexus.local.lab:8081/repository/maven-snapshots/</url>
+    </snapshotRepository>
 </distributionManagement>
+
 
 
 	
