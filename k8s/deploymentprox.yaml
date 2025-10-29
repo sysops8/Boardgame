@@ -85,7 +85,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: boardgame.local.lab        # запись в локальном DNS
+    - host: boardgame.local.lab        # запись в локальном DNS, запись A с IP от metallb
       http:
         paths:
           - path: /
@@ -99,4 +99,5 @@ spec:
     - hosts:
         - boardgame.local.lab          #  хост который в DNS
       secretName: boardgame-tls
+
 
