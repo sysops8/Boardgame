@@ -30,7 +30,13 @@ pipeline {
                 checkout scm
             }
         }
-
+    stage('Set Build Version') {
+        steps {
+            script {
+                sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
+            }
+        }
+    }
         stage('Build Docker Image') {
             steps {
                 script {
