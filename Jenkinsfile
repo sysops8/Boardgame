@@ -61,7 +61,7 @@ pipeline {
                                 -Dnexus.username=${NEXUS_USER} \
                                 -Dnexus.password=${NEXUS_PSW}
                         """
-                        """
+
                             }
                         }
                     }
