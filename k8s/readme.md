@@ -6,7 +6,7 @@
 
 ## 🧩 Общая структура
 
-.
+```
 ├── Jenkinsfile
 ├── pom.xml
 ├── src/
@@ -15,9 +15,9 @@
 │ ├── deployment-stage.yaml
 │ └── deployment-prod.yaml
 └── README.md
+```
 
-yaml
-Копировать код
+
 
 ---
 
@@ -115,6 +115,7 @@ pipeline {
         }
     }
 }
+```
 🧠 Как работает деплой
 Jenkins определяет ветку (env.BRANCH_NAME)
 
@@ -127,36 +128,34 @@ Jenkins определяет ветку (env.BRANCH_NAME)
 В случае ошибки уведомляет по почте или в Slack
 
 🚀 Пример деплоя вручную
-bash
-Копировать код
+```bash
+
 # Для dev окружения
 kubectl apply -f k8s/deployment-dev.yaml -n dev
 
 # Для prod окружения
 kubectl apply -f k8s/deployment-prod.yaml -n prod
-🧩 Требования
-Jenkins 2.440+
+```
+**🧩 Требования**
+- Jenkins 2.440+
+- Плагин Pipeline: Multibranch
+- Плагин Kubernetes CLI
 
-Плагин Pipeline: Multibranch
-
-Плагин Kubernetes CLI
-
-Установленные утилиты:
-
-kubectl
-
-maven
-
-docker
+**Установленные утилиты:**
+- kubectl
+- maven
+- docker
 
 ✅ Рекомендации
 Каждый namespace (dev, stage, prod) должен существовать в Kubernetes:
 
-bash
+```bash
 Копировать код
 kubectl create namespace dev
 kubectl create namespace stage
 kubectl create namespace prod
+```
 Обновляйте k3s.yaml при изменении конфигурации кластера
+
 
 Проверяйте права у Jenkins: kubectl auth can-i apply -A --as system:serviceaccount:default:jenkins
