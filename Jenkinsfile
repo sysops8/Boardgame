@@ -44,7 +44,7 @@ pipeline {
                 script {
                     docker.withRegistry("http://${HARBOR_URL}", HARBOR_CREDENTIALS) {
                         dockerImage.push()
-                        dockerImage.push('latest') // optional: push latest tag
+                        dockerImage.push('latest') // optional
                     }
                 }
             }
@@ -61,11 +61,9 @@ pipeline {
                                 -Dnexus.username=${NEXUS_USER} \
                                 -Dnexus.password=${NEXUS_PSW}
                         """
-
-                            }
-                        }
                     }
                 }
+            }
         }
 
         stage('SonarQube Analysis') {
@@ -80,8 +78,8 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                     sh """
-                    export KUBECONFIG=${KUBECONFIG_FILE}
-                    kubectl apply -f k8s/deployment.yaml
+                        export KUBECONFIG=${KUBECONFIG_FILE}
+                        kubectl apply -f k8s/deployment.yaml
                     """
                 }
             }
@@ -91,8 +89,8 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                     sh """
-                    export KUBECONFIG=${KUBECONFIG_FILE}
-                    kubectl rollout status deployment/myapp
+                        export KUBECONFIG=${KUBECONFIG_FILE}
+                        kubectl rollout status deployment/myapp
                     """
                 }
             }
@@ -102,18 +100,18 @@ pipeline {
     post {
         success {
             mail to: "${EMAIL_RECIPIENTS}",
-                 subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.\nBuild URL: ${env.BUILD_URL}"
+                subject: "✅ SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.\nBuild URL: ${env.BUILD_URL}"
         }
         failure {
             mail to: "${EMAIL_RECIPIENTS}",
-                 subject: "FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
+                subject: "❌ FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
         }
         unstable {
             mail to: "${EMAIL_RECIPIENTS}",
-                 subject: "UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
+                subject: "⚠️ UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
         }
         always {
             cleanWs()
