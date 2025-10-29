@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: boardgame
-          image: harbor.local.lab/library/boardgame:latest   # ✅ твой Harbor
+          image: harbor.local.lab/library/boardgame:latest   #  Harbor
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -85,7 +85,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: boardgame.local.lab        # ✅ поменяй под свой DNS
+    - host: boardgame.local.lab        # запись в локальном DNS
       http:
         paths:
           - path: /
@@ -97,5 +97,6 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - boardgame.local.lab          # ✅ тот же хост
+        - boardgame.local.lab          #  хост который в DNS
       secretName: boardgame-tls
+
