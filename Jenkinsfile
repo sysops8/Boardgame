@@ -149,7 +149,7 @@ pipeline {
                             # Клонирование GitOps репозитория
                             rm -rf boardgame-gitops
                             git clone https://${GIT_TOKEN}@github.com/sysops8/Boardgame-gitops.git
-                            cd boardgame-gitops
+                            cd Boardgame-gitops
                             
                             # Обновление image tag в base/deployment.yaml
                             sed -i "s|image: harbor.local.lab/library/myapp:[0-9]*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
@@ -162,7 +162,7 @@ pipeline {
                             git push origin main
                             
                             cd ..
-                            rm -rf boardgame-gitops
+                            rm -rf Boardgame-gitops
                         """
                     }
                 }
