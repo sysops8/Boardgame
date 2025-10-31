@@ -79,16 +79,6 @@ pipeline {
                 }
             }
         }
-        stage('Update K8s Manifest') {
-            steps {
-                script {
-                    sh """
-                        sed -i 's|image: .*|image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}|' k8s_deployment-service.yaml
-                    """
-                }
-            }
-        }
-
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
