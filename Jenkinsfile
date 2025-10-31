@@ -178,14 +178,14 @@ pipeline {
                     echo "🔄 Triggering ArgoCD sync..."
                     
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {  
-                            sh '''
+                            sh """
                                 # Логин в ArgoCD
                                 argocd login argocd.local.lab --auth-token $ARGOCD_TOKEN --insecure
                                 # Синхронизация приложения
                                 argocd app sync boardgame --force
                                 # Ожидание завершения
                                 argocd app wait boardgame --timeout 300
-                        '''            
+                        """
                     }
                 }
             }
