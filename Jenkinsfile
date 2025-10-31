@@ -116,7 +116,7 @@ pipeline {
                         git config user.name "Jenkins"
                         git add .
                         git commit -m "Update boardgame to version ${IMAGE_TAG}"
-                        git push https://${GITHUB_TOKEN}@github.com/YOUR_USERNAME/boardgame-gitops.git HEAD:main
+                        git push https://${GITHUB_TOKEN}@github.com/sysops8/boardgame.git HEAD:main
                     '''
                 }
             }
