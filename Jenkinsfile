@@ -358,6 +358,7 @@ stage('Diagnose Pod Issues') {
                 }
             }
         }
+    }
     post {
         success {
             script {
