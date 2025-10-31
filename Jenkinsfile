@@ -49,12 +49,12 @@ pipeline {
                 script {
                     echo "🔧 Checking required tools..."
                     sh '''
-                        which mvn || echo "❌ Maven not found"
-                        which docker || echo "❌ Docker not found"
-                        which trivy || echo "❌ Trivy not found"
-                        which kubectl || echo "❌ kubectl not found"
-                        which argocd || echo "❌ ArgoCD CLI not found"
-                        git --version || echo "❌ Git not found"
+                        which mvn || echo "Maven not found"
+                        which docker || echo "Docker not found"
+                        which trivy || echo "Trivy not found"
+                        which kubectl || echo "kubectl not found"
+                        which argocd || echo "ArgoCD CLI not found"
+                        git --version || echo "Git not found"
                     '''
                 }
             }
@@ -135,7 +135,6 @@ pipeline {
             steps {
                 script {
                     echo "🐳 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
-                    // Убедитесь, что Dockerfile существует в корне проекта
                     dockerImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "--build-arg JAR_FILE=target/*.jar .")
                     dockerImage.tag('latest')
                 }
@@ -156,7 +155,6 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
-                    // Читаем отчет для логирования
                     sh 'cat trivy-report.txt || true'
                 }
             }
@@ -181,26 +179,22 @@ pipeline {
                     
                     withCredentials([string(credentialsId: GITOPS_CREDENTIALS, variable: 'GIT_TOKEN')]) {
                         sh """
-                            # Клонирование GitOps репозитория
                             rm -rf boardgame-gitops
                             git clone https://${GIT_TOKEN}@github.com/sysops8/Boardgame-gitops.git
                             cd Boardgame-gitops
                             
-                            # Обновление image tag в base/deployment.yaml
                             sed -i "s|image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:[0-9]*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
                             
-                            # Проверяем изменения
-                            echo "🔍 Changes made:"
+                            echo "Changes made:"
                             git diff || true
                             
-                            # Коммит и пуш
                             git config user.email "jenkins@local.lab"
                             git config user.name "Jenkins CI"
                             git add base/deployment.yaml
                             git commit -m "Update image to ${IMAGE_TAG} - Build #${env.BUILD_NUMBER}" || echo "No changes to commit"
                             git push origin main
                             
-                            echo "✅ GitOps repository updated successfully"
+                            echo "GitOps repository updated successfully"
                             
                             cd ..
                             rm -rf Boardgame-gitops
@@ -217,10 +211,9 @@ pipeline {
         
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
                         sh '''
-                            set +e  # Разрешаем продолжение при ошибках для лучшей диагностики
+                            set +e
                             
-                            # Логин в ArgoCD
-                            echo "🔐 Logging into ArgoCD..."
+                            echo "Logging into ArgoCD..."
                             argocd login ${ARGOCD_SERVER} \
                                 --auth-token $ARGOCD_TOKEN \
                                 --username "api" \
@@ -228,35 +221,31 @@ pipeline {
                                 --grpc-web
                             
                             if [ $? -ne 0 ]; then
-                                echo "❌ ArgoCD login failed"
+                                echo "ArgoCD login failed"
                                 exit 1
                             fi
                             
-                            # Проверяем статус приложения перед синхронизацией
-                            echo "📊 Current application status:"
-                            argocd app get boardgame || echo "⚠️ Cannot get application details"
+                            echo "Current application status:"
+                            argocd app get boardgame || echo "Cannot get application details"
                             
-                            # Синхронизация приложения
-                            echo "🔄 Starting sync..."
+                            echo "Starting sync..."
                             argocd app sync boardgame --force --prune
                             
                             SYNC_EXIT_CODE=$?
                             if [ $SYNC_EXIT_CODE -eq 0 ]; then
-                                echo "✅ Sync initiated successfully"
+                                echo "Sync initiated successfully"
                             else
-                                echo "⚠️ Sync completed with exit code: $SYNC_EXIT_CODE"
+                                echo "Sync completed with exit code: $SYNC_EXIT_CODE"
                             fi
                             
-                            # Ожидание завершения синхронизации
-                            echo "⏳ Waiting for sync to complete..."
+                            echo "Waiting for sync to complete..."
                             argocd app wait boardgame --health --timeout 600
                             
                             WAIT_EXIT_CODE=$?
                             if [ $WAIT_EXIT_CODE -eq 0 ]; then
-                                echo "🎉 Application synced and healthy"
+                                echo "Application synced and healthy"
                             else
-                                echo "⚠️ Wait completed with exit code: $WAIT_EXIT_CODE"
-                                # Показываем статус для диагностики
+                                echo "Wait completed with exit code: $WAIT_EXIT_CODE"
                                 argocd app get boardgame
                             fi
                             
@@ -273,20 +262,16 @@ pipeline {
                     echo "✅ Verifying deployment in Kubernetes..."
                     
                     sh """
-                        # Проверка подов в Kubernetes
-                        echo "📋 Checking pods..."
+                        echo "Checking pods..."
                         kubectl get pods -n production -l app=boardgame -o wide
                         
-                        # Проверка готовности deployment
-                        echo "🔄 Checking deployment rollout status..."
+                        echo "Checking deployment rollout status..."
                         kubectl rollout status deployment/boardgame-deployment -n production --timeout=300s
                         
-                        # Проверка сервисов
-                        echo "🌐 Checking services..."
+                        echo "Checking services..."
                         kubectl get svc -n production -l app=boardgame
                         
-                        # Проверка реплик
-                        echo "🔢 Checking replica status..."
+                        echo "Checking replica status..."
                         kubectl get deployment boardgame-deployment -n production -o jsonpath='{.status.availableReplicas}/{.status.replicas} pods available'
                         echo ""
                     """
@@ -300,30 +285,27 @@ pipeline {
                     echo "🩺 Performing health check..."
                     
                     retry(3) {
-                        sleep(15)  # Увеличиваем задержку для полного старта
+                        sleep 15
                         sh """
-                            # Проверка readiness подов
+                            echo "Checking readiness pods..."
                             kubectl wait --for=condition=ready pod \
                                 -l app=boardgame \
                                 -n production \
                                 --timeout=120s
                             
-                            # Получаем IP для health check
-                            echo "🌐 Performing HTTP health check..."
+                            echo "Performing HTTP health check..."
                             
-                            # Способ 1: через Service (если есть LoadBalancer)
                             if kubectl get svc boardgame-service -n production &>/dev/null; then
                                 APP_URL=\$(kubectl get svc boardgame-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
                                 if [ -n "\$APP_URL" ]; then
                                     echo "Testing http://\${APP_URL}/"
                                     curl -f http://\${APP_URL}/ || exit 1
                                 else
-                                    echo "⚠️ LoadBalancer IP not available, using port-forward method"
+                                    echo "LoadBalancer IP not available, using port-forward method"
                                 fi
                             fi
                             
-                            # Способ 2: через port-forward (fallback)
-                            echo "🔧 Using port-forward for health check..."
+                            echo "Using port-forward for health check..."
                             kubectl port-forward svc/boardgame-service -n production 8080:8080 &
                             PF_PID=\$!
                             sleep 5
@@ -437,7 +419,6 @@ pipeline {
         
         always {
             echo "🧹 Cleaning workspace..."
-            // Сохраняем важные артефакты перед очисткой
             archiveArtifacts artifacts: '**/target/*.jar,trivy-report.txt', allowEmptyArchive: true
             cleanWs()
         }
