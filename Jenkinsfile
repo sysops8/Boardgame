@@ -172,26 +172,32 @@ pipeline {
             }
         }
         
-    stage('Sync ArgoCD Application') {
-        steps {
-            script {
-                echo "🔄 Triggering ArgoCD sync..."
-    
-                withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
-                    sh '''
-                        # Логин в ArgoCD с безопасным токеном
-                        argocd login argocd.local.lab --auth-token $ARGOCD_TOKEN --insecure
-    
-                        # Синхронизация приложения
-                        argocd app sync boardgame --force
-    
-                        # Ожидание завершения
-                        argocd app wait boardgame --timeout 300
-                    '''
+        stage('Sync ArgoCD Application') {
+            steps {
+                script {
+                    echo "🔄 Triggering ArgoCD sync..."
+        
+                    withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
+                        sh '''
+                            # Логин в ArgoCD с использованием --username и --grpc-web
+                            argocd login ${ARGOCD_SERVER} \
+                                --auth-token $ARGOCD_TOKEN \
+                                --username "api" \
+                                --insecure \
+                                --grpc-web
+        
+                            # Синхронизация приложения
+                            argocd app sync boardgame --force
+        
+                            # Ожидание завершения синхронизации
+                            argocd app wait boardgame \
+                                --health \
+                                --timeout 300
+                        '''
+                    }
                 }
             }
         }
-    }
 
         
         stage('Verify Deployment') {
