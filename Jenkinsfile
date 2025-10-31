@@ -110,6 +110,21 @@ pipeline {
                 }
             }
         }
+        
+        stage('Health Check') {
+            steps {
+                script {
+                    echo "🩺 Checking application health..."
+                    withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
+                        sh '''
+                            export KUBECONFIG=${KUBECONFIG_FILE}
+                            kubectl wait --for=condition=available --timeout=60s deployment/boardgame-deployment
+                            kubectl get pods -o wide | grep boardgame
+                        '''
+                    }
+                }
+            }
+        }
 
         stage('Verify Deployment') {
             steps {
