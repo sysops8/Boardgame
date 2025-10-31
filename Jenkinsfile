@@ -149,13 +149,13 @@ pipeline {
                             # Клонирование GitOps репозитория
                             rm -rf boardgame-gitops
                             git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame.git
-                            cd boardgame/gitops
+                            cd boardgame
                             
                             # Обновление image tag в deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/production/kustomization.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" gitops/production/base/production/kustomization.yaml
                             
                             # Или обновление в base/deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" gitops/base/deployment.yaml
                             
                             # Коммит и пуш
                             git config user.email "jenkins@local.lab"
