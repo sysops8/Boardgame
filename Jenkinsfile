@@ -271,6 +271,43 @@ stage('Sync ArgoCD Application') {
                 }
             }
         }
+
+stage('Diagnose Pod Issues') {
+    steps {
+        script {
+            echo "🔍 Diagnosing pod issues..."
+            
+            sh '''
+                echo "=== Current Pods ==="
+                kubectl get pods -n production -o wide
+                
+                echo "=== Pods with Labels ==="
+                kubectl get pods -n production --show-labels
+                
+                echo "=== Problem Pod Details ==="
+                for POD in $(kubectl get pods -n production -o jsonpath='{.items[*].metadata.name}'); do
+                    echo "--- Pod: $POD ---"
+                    echo "Status:"
+                    kubectl get pod $POD -n production -o jsonpath='{range .status.conditions[*]}{.type}={.status} {.message}{"\\n"}{end}'
+                    echo ""
+                done
+                
+                echo "=== Pod Events ==="
+                kubectl get events -n production --sort-by='.lastTimestamp' --field-selector involvedObject.kind=Pod
+                
+                echo "=== Pod Logs (last 20 lines) ==="
+                for POD in $(kubectl get pods -n production -o jsonpath='{.items[*].metadata.name}'); do
+                    echo "--- Logs for $POD ---"
+                    kubectl logs $POD -n production --tail=20 || echo "Cannot get logs for $POD"
+                    echo ""
+                done
+                
+                echo "=== Describe All Pods ==="
+                kubectl describe pods -n production
+            '''
+        }
+    }
+}
         
         stage('Health Check') {
             steps {
