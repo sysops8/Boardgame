@@ -17,7 +17,7 @@ pipeline {
         SONARQUBE_CREDENTIALS = "sonar-token"
 
         // Kubernetes
-        KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
+        KUBECONFIG_CREDENTIALS = "k3s-kubeconfig"
 
         // Email
         EMAIL_RECIPIENTS = "almastvx@gmail.com"
@@ -30,13 +30,7 @@ pipeline {
                 checkout scm
             }
         }
-    stage('Set Build Version') {
-        steps {
-            script {
-                sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
-            }
-        }
-    }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -50,7 +44,7 @@ pipeline {
                 script {
                     docker.withRegistry("http://${HARBOR_URL}", HARBOR_CREDENTIALS) {
                         dockerImage.push()
-                        dockerImage.push('latest') // optional
+                        dockerImage.push('latest') // optional: push latest tag
                     }
                 }
             }
@@ -67,9 +61,11 @@ pipeline {
                                 -Dnexus.username=${NEXUS_USER} \
                                 -Dnexus.password=${NEXUS_PSW}
                         """
+                        """
+                            }
+                        }
                     }
                 }
-            }
         }
 
         stage('SonarQube Analysis') {
@@ -84,8 +80,8 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                     sh """
-                        export KUBECONFIG=${KUBECONFIG_FILE}
-                        kubectl apply -f k8s_deployment-service.yaml
+                    export KUBECONFIG=${KUBECONFIG_FILE}
+                    kubectl apply -f k8s/deployment.yaml
                     """
                 }
             }
@@ -95,8 +91,8 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                     sh """
-                        export KUBECONFIG=${KUBECONFIG_FILE}
-                        kubectl rollout status deployment/boardgame-deployment
+                    export KUBECONFIG=${KUBECONFIG_FILE}
+                    kubectl rollout status deployment/myapp
                     """
                 }
             }
@@ -106,18 +102,18 @@ pipeline {
     post {
         success {
             mail to: "${EMAIL_RECIPIENTS}",
-                subject: "✅ SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.\nBuild URL: ${env.BUILD_URL}"
+                 subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.\nBuild URL: ${env.BUILD_URL}"
         }
         failure {
             mail to: "${EMAIL_RECIPIENTS}",
-                subject: "❌ FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
+                 subject: "FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
         }
         unstable {
             mail to: "${EMAIL_RECIPIENTS}",
-                subject: "⚠️ UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
+                 subject: "UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
         }
         always {
             cleanWs()
