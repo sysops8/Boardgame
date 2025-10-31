@@ -18,6 +18,7 @@ pipeline {
 
         // Kubernetes
         KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
+        K8S_MANIFEST = "k8s_deployment-service.yaml"
 
         // Email
         EMAIL_RECIPIENTS = "almastvx@gmail.com"
@@ -91,12 +92,36 @@ pipeline {
             steps {
                 script {
                     echo "📝 Updating Kubernetes manifest with image: ${IMAGE_TAG}"
-                    // безопасная замена только первой найденной строки image:
-                    sh """
-                        sed -i '0,/image:/s|image: .*|image: ${IMAGE_TAG}|' k8s_deployment-service.yaml
-                        echo "✅ Manifest updated:"
-                        grep 'image:' k8s_deployment-service.yaml
-                    """
+
+                    sh '''
+                        set -e
+                        FILE_PATH="${K8S_MANIFEST}"
+
+                        if [ ! -f "$FILE_PATH" ]; then
+                            echo "❌ ERROR: Kubernetes manifest not found: $FILE_PATH"
+                            exit 1
+                        fi
+
+                        echo "🔍 Found manifest: $FILE_PATH"
+                        echo "Replacing image with: ${IMAGE_TAG}"
+
+                        # безопасная замена с сохранением отступов
+                        awk -v new_image="${IMAGE_TAG}" '
+                            /^[[:space:]]*image:[[:space:]]*/ && updated==0 {
+                                indent = match($0, /[^ ]/)
+                                printf "%*simage: %s\\n", indent-1, "", new_image
+                                updated=1
+                                next
+                            }
+                            { print }
+                        ' "$FILE_PATH" > tmp.yaml && mv tmp.yaml "$FILE_PATH"
+
+                        echo "✅ Manifest updated successfully:"
+                        grep 'image:' "$FILE_PATH"
+
+                        echo "🔍 Validating manifest syntax..."
+                        kubectl apply --dry-run=client -f "$FILE_PATH"
+                    '''
                 }
             }
         }
@@ -107,8 +132,9 @@ pipeline {
                     echo "🚀 Deploying to Kubernetes cluster..."
                     withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                         sh """
+                            set -e
                             export KUBECONFIG=${KUBECONFIG_FILE}
-                            kubectl apply -f k8s_deployment-service.yaml
+                            kubectl apply -f ${K8S_MANIFEST}
                         """
                     }
                 }
@@ -120,10 +146,11 @@ pipeline {
                 script {
                     echo "🔄 Verifying rollout status of deployment..."
                     withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                        sh """
+                        sh '''
+                            set -e
                             export KUBECONFIG=${KUBECONFIG_FILE}
                             kubectl rollout status deployment/boardgame-deployment --timeout=120s
-                        """
+                        '''
                     }
                 }
             }
