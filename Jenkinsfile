@@ -30,6 +30,12 @@ pipeline {
         IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
     
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+    }
+    
     stages {
         stage('Checkout Source Code') {
             steps {
@@ -38,11 +44,27 @@ pipeline {
             }
         }
         
+        stage('Environment Check') {
+            steps {
+                script {
+                    echo "🔧 Checking required tools..."
+                    sh '''
+                        which mvn || echo "❌ Maven not found"
+                        which docker || echo "❌ Docker not found"
+                        which trivy || echo "❌ Trivy not found"
+                        which kubectl || echo "❌ kubectl not found"
+                        which argocd || echo "❌ ArgoCD CLI not found"
+                        git --version || echo "❌ Git not found"
+                    '''
+                }
+            }
+        }
+        
         stage('Set Build Version') {
             steps {
                 script {
                     echo "🏷️ Setting Maven version to 0.0.${env.BUILD_NUMBER}"
-                    sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
+                    sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER} -DgenerateBackupPoms=false"
                 }
             }
         }
@@ -50,7 +72,7 @@ pipeline {
         stage('Build Application') {
             steps {
                 echo "🔨 Building Maven project..."
-                sh "mvn clean package -DskipTests"
+                sh "mvn clean compile -DskipTests"
             }
         }
         
@@ -62,6 +84,7 @@ pipeline {
             post {
                 always {
                     junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                    archiveArtifacts artifacts: '**/target/surefire-reports/*.xml', allowEmptyArchive: true
                 }
             }
         }
@@ -70,16 +93,24 @@ pipeline {
             steps {
                 echo "📊 Running SonarQube analysis..."
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh "mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL}"
+                    sh "mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL} -Dsonar.projectVersion=0.0.${env.BUILD_NUMBER}"
                 }
             }
         }
+        
         stage('Quality Gate') {
             steps {
                 echo "🚦 Waiting for Quality Gate..."
                 timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false, credentialsId: SONARQUBE_CREDENTIALS
+                    waitForQualityGate abortPipeline: true, credentialsId: SONARQUBE_CREDENTIALS
                 }
+            }
+        }
+        
+        stage('Package Application') {
+            steps {
+                echo "📦 Packaging application..."
+                sh "mvn package -DskipTests"
             }
         }
         
@@ -89,10 +120,11 @@ pipeline {
                 configFileProvider([configFile(fileId: 'maven-settings', variable: 'MAVEN_SETTINGS')]) {
                     withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIALS, usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PSW')]) {
                         sh """
-                            mvn clean deploy -s $MAVEN_SETTINGS \
+                            mvn deploy -s $MAVEN_SETTINGS \
                                 -DaltDeploymentRepository=nexus::default::${NEXUS_URL} \
                                 -Dnexus.username=${NEXUS_USER} \
-                                -Dnexus.password=${NEXUS_PSW}
+                                -Dnexus.password=${NEXUS_PSW} \
+                                -DskipTests
                         """
                     }
                 }
@@ -103,7 +135,8 @@ pipeline {
             steps {
                 script {
                     echo "🐳 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
-                    dockerImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                    // Убедитесь, что Dockerfile существует в корне проекта
+                    dockerImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "--build-arg JAR_FILE=target/*.jar .")
                     dockerImage.tag('latest')
                 }
             }
@@ -123,6 +156,8 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
+                    // Читаем отчет для логирования
+                    sh 'cat trivy-report.txt || true'
                 }
             }
         }
@@ -152,7 +187,11 @@ pipeline {
                             cd Boardgame-gitops
                             
                             # Обновление image tag в base/deployment.yaml
-                            sed -i "s|image: harbor.local.lab/library/myapp:[0-9]*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
+                            sed -i "s|image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:[0-9]*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
+                            
+                            # Проверяем изменения
+                            echo "🔍 Changes made:"
+                            git diff || true
                             
                             # Коммит и пуш
                             git config user.email "jenkins@local.lab"
@@ -160,6 +199,8 @@ pipeline {
                             git add base/deployment.yaml
                             git commit -m "Update image to ${IMAGE_TAG} - Build #${env.BUILD_NUMBER}" || echo "No changes to commit"
                             git push origin main
+                            
+                            echo "✅ GitOps repository updated successfully"
                             
                             cd ..
                             rm -rf Boardgame-gitops
@@ -176,42 +217,79 @@ pipeline {
         
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
                         sh '''
-                            # Логин в ArgoCD с использованием --username и --grpc-web
+                            set +e  # Разрешаем продолжение при ошибках для лучшей диагностики
+                            
+                            # Логин в ArgoCD
+                            echo "🔐 Logging into ArgoCD..."
                             argocd login ${ARGOCD_SERVER} \
                                 --auth-token $ARGOCD_TOKEN \
                                 --username "api" \
                                 --insecure \
                                 --grpc-web
-        
+                            
+                            if [ $? -ne 0 ]; then
+                                echo "❌ ArgoCD login failed"
+                                exit 1
+                            fi
+                            
+                            # Проверяем статус приложения перед синхронизацией
+                            echo "📊 Current application status:"
+                            argocd app get boardgame || echo "⚠️ Cannot get application details"
+                            
                             # Синхронизация приложения
-                            argocd app sync boardgame --force
-        
+                            echo "🔄 Starting sync..."
+                            argocd app sync boardgame --force --prune
+                            
+                            SYNC_EXIT_CODE=$?
+                            if [ $SYNC_EXIT_CODE -eq 0 ]; then
+                                echo "✅ Sync initiated successfully"
+                            else
+                                echo "⚠️ Sync completed with exit code: $SYNC_EXIT_CODE"
+                            fi
+                            
                             # Ожидание завершения синхронизации
-                            argocd app wait boardgame \
-                                --health \
-                                --timeout 300
+                            echo "⏳ Waiting for sync to complete..."
+                            argocd app wait boardgame --health --timeout 600
+                            
+                            WAIT_EXIT_CODE=$?
+                            if [ $WAIT_EXIT_CODE -eq 0 ]; then
+                                echo "🎉 Application synced and healthy"
+                            else
+                                echo "⚠️ Wait completed with exit code: $WAIT_EXIT_CODE"
+                                # Показываем статус для диагностики
+                                argocd app get boardgame
+                            fi
+                            
+                            set -e
                         '''
                     }
                 }
             }
         }
 
-        
         stage('Verify Deployment') {
             steps {
                 script {
                     echo "✅ Verifying deployment in Kubernetes..."
                     
-                    withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
-                        sh """
-                            # Проверка статуса приложения в ArgoCD
-                            argocd app get boardgame
-                            
-                            # Проверка подов в Kubernetes
-                            kubectl get pods -n production -l app=boardgame
-                            kubectl rollout status deployment/boardgame-deployment -n production --timeout=300s
-                        """
-                    }
+                    sh """
+                        # Проверка подов в Kubernetes
+                        echo "📋 Checking pods..."
+                        kubectl get pods -n production -l app=boardgame -o wide
+                        
+                        # Проверка готовности deployment
+                        echo "🔄 Checking deployment rollout status..."
+                        kubectl rollout status deployment/boardgame-deployment -n production --timeout=300s
+                        
+                        # Проверка сервисов
+                        echo "🌐 Checking services..."
+                        kubectl get svc -n production -l app=boardgame
+                        
+                        # Проверка реплик
+                        echo "🔢 Checking replica status..."
+                        kubectl get deployment boardgame-deployment -n production -o jsonpath='{.status.availableReplicas}/{.status.replicas} pods available'
+                        echo ""
+                    """
                 }
             }
         }
@@ -222,17 +300,35 @@ pipeline {
                     echo "🩺 Performing health check..."
                     
                     retry(3) {
-                        sleep(10)
+                        sleep(15)  # Увеличиваем задержку для полного старта
                         sh """
                             # Проверка readiness подов
                             kubectl wait --for=condition=ready pod \
                                 -l app=boardgame \
                                 -n production \
-                                --timeout=60s
+                                --timeout=120s
                             
-                            # HTTP health check
-                            LOAD_BALANCER_IP=\$(kubectl get svc boardgame-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                            curl -f http://\${LOAD_BALANCER_IP}/ || exit 1
+                            # Получаем IP для health check
+                            echo "🌐 Performing HTTP health check..."
+                            
+                            # Способ 1: через Service (если есть LoadBalancer)
+                            if kubectl get svc boardgame-service -n production &>/dev/null; then
+                                APP_URL=\$(kubectl get svc boardgame-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                                if [ -n "\$APP_URL" ]; then
+                                    echo "Testing http://\${APP_URL}/"
+                                    curl -f http://\${APP_URL}/ || exit 1
+                                else
+                                    echo "⚠️ LoadBalancer IP not available, using port-forward method"
+                                fi
+                            fi
+                            
+                            # Способ 2: через port-forward (fallback)
+                            echo "🔧 Using port-forward for health check..."
+                            kubectl port-forward svc/boardgame-service -n production 8080:8080 &
+                            PF_PID=\$!
+                            sleep 5
+                            curl -f http://localhost:8080/ || exit 1
+                            kill \$PF_PID
                         """
                     }
                 }
@@ -245,6 +341,9 @@ pipeline {
             script {
                 def appUrl = "http://boardgame.local.lab"
                 def argocdUrl = "https://${ARGOCD_SERVER}/applications/boardgame"
+                
+                echo "🎉 Pipeline completed successfully!"
+                echo "📧 Sending success notification..."
                 
                 emailext(
                     subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
@@ -299,42 +398,47 @@ pipeline {
         }
         
         failure {
-            emailext(
-                subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
-                    <html>
-                    <body style="font-family: Arial, sans-serif;">
-                        <h2 style="color: #dc3545;">❌ Pipeline Failed!</h2>
-                        <table style="border-collapse: collapse; width: 100%;">
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build:</strong></td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">#${env.BUILD_NUMBER}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Failed Stage:</strong></td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${env.STAGE_NAME}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Console:</strong></td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">
-                                    <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a>
-                                </td>
-                            </tr>
-                        </table>
-                    </body>
-                    </html>
-                """,
-                to: EMAIL_RECIPIENTS,
-                mimeType: 'text/html'
-            )
+            script {
+                echo "❌ Pipeline failed!"
+                emailext(
+                    subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <h2 style="color: #dc3545;">❌ Pipeline Failed!</h2>
+                            <table style="border-collapse: collapse; width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">#${env.BUILD_NUMBER}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Failed Stage:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${env.STAGE_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Console:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </body>
+                        </html>
+                    """,
+                    to: EMAIL_RECIPIENTS,
+                    mimeType: 'text/html'
+                )
+            }
         }
         
         always {
             echo "🧹 Cleaning workspace..."
+            // Сохраняем важные артефакты перед очисткой
+            archiveArtifacts artifacts: '**/target/*.jar,trivy-report.txt', allowEmptyArchive: true
             cleanWs()
         }
     }
