@@ -79,6 +79,26 @@ pipeline {
                 }
             }
         }
+        stage('Update K8s Manifest') {
+            steps {
+                script {
+                    echo "📝 Updating Kubernetes manifest with image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}"
+        
+                    // Используем безопасную оболочку без Groovy-интерполяции
+                    sh '''
+                        IMAGE_TAG="${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${BUILD_NUMBER}"
+                        if [ ! -f k8s_deployment-service.yaml ]; then
+                            echo "❌ File k8s_deployment-service.yaml not found!"
+                            exit 1
+                        fi
+                        echo "Updating image to: $IMAGE_TAG"
+                        sed -i "0,/image:/s|image: .*|image: $IMAGE_TAG|" k8s_deployment-service.yaml
+                        echo "✅ Manifest updated successfully:"
+                        grep "image:" k8s_deployment-service.yaml
+                    '''
+                }
+            }
+        }
 
         stage('Deploy to Kubernetes') {
             steps {
