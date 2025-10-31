@@ -152,7 +152,7 @@ pipeline {
                             cd boardgame-gitops
                             
                             # Обновление image tag в deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/production/kustomization.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/overlays/production/kustomization.yaml
                             
                             # Или обновление в base/deployment.yaml
                             sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
