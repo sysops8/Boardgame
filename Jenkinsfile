@@ -148,8 +148,8 @@ pipeline {
                         sh """
                             # Клонирование GitOps репозитория
                             rm -rf boardgame-gitops
-                            git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame.git
-                            cd boardgame
+                            git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame-gitops.git
+                            cd boardgame-gitops
                             
                             # Обновление image tag в deployment.yaml
                             sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/production/kustomization.yaml
