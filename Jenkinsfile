@@ -100,39 +100,37 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Update GitOps Repository') {
             steps {
-                withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                    sh """
-                        export KUBECONFIG=${KUBECONFIG_FILE}
-                        kubectl apply -f k8s_deployment-service.yaml
-                    """
+                script {
+                    // Клонируем GitOps репозиторий
+                    sh '''
+                        git clone ${GITOPS_REPO} gitops-repo
+                        cd gitops-repo
+                        
+                        # Обновляем образ в манифестах
+                        sed -i 's|image:.*|image: ${FULL_IMAGE_NAME}|g' apps/boardgame/deployment.yaml
+                        
+                        # Коммитим и пушим изменения
+                        git config user.email "jenkins@local.lab"
+                        git config user.name "Jenkins"
+                        git add .
+                        git commit -m "Update boardgame to version ${IMAGE_TAG}"
+                        git push https://${GITHUB_TOKEN}@github.com/YOUR_USERNAME/boardgame-gitops.git HEAD:main
+                    '''
                 }
             }
         }
         
-        stage('Health Check') {
+        stage('Sync ArgoCD Application') {
             steps {
                 script {
-                    echo "🩺 Checking application health..."
-                    withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                        sh '''
-                            export KUBECONFIG=${KUBECONFIG_FILE}
-                            kubectl wait --for=condition=available --timeout=60s deployment/boardgame-deployment
-                            kubectl get pods -o wide | grep boardgame
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                    sh """
-                        export KUBECONFIG=${KUBECONFIG_FILE}
-                        kubectl rollout status deployment/boardgame-deployment
-                    """
+                    // Используем ArgoCD CLI для синхронизации
+                    sh '''
+                        argocd app sync boardgame
+                        argocd app wait boardgame --health
+                        argocd app get boardgame
+                    '''
                 }
             }
         }
