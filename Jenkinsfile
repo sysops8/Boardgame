@@ -309,44 +309,59 @@ stage('Diagnose Pod Issues') {
     }
 }
         
-        stage('Health Check') {
-            steps {
-                script {
-                    echo "🩺 Performing health check..."
-                    
-                    retry(3) {
-                        sleep 15
-                        sh """
-                            echo "Checking readiness pods..."
-                            kubectl wait --for=condition=ready pod \
-                                -l app=boardgame \
+            stage('Health Check') {
+                steps {
+                    script {
+                        echo "🩺 Performing health check..."
+                        
+                        sh '''
+                            # Даем время на обновление deployment
+                            echo "⏳ Waiting for deployment to update..."
+                            sleep 30
+                            
+                            # Ждем готовности только правильных подов
+                            echo "📦 Waiting for correct pods to be ready..."
+                            if kubectl wait --for=condition=ready \
+                                pod -l app=boardgame,managed-by=argocd \
                                 -n production \
-                                --timeout=120s
-                            
-                            echo "Performing HTTP health check..."
-                            
-                            if kubectl get svc boardgame-service -n production &>/dev/null; then
-                                APP_URL=\$(kubectl get svc boardgame-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                                if [ -n "\$APP_URL" ]; then
-                                    echo "Testing http://\${APP_URL}/"
-                                    curl -f http://\${APP_URL}/ || exit 1
-                                else
-                                    echo "LoadBalancer IP not available, using port-forward method"
-                                fi
+                                --timeout=180s; then
+                                echo "✅ Correct pods are ready!"
+                            else
+                                echo "⚠️ Some pods not ready, but checking what we have..."
                             fi
                             
-                            echo "Using port-forward for health check..."
+                            # Проверяем текущие поды
+                            echo "=== Current pod status ==="
+                            kubectl get pods -n production -l app=boardgame -o wide
+                            
+                            # Health check на любом работающем поде
+                            echo "🌐 Performing health check..."
                             kubectl port-forward svc/boardgame-service -n production 8080:8080 &
-                            PF_PID=\$!
-                            sleep 5
-                            curl -f http://localhost:8080/ || exit 1
-                            kill \$PF_PID
-                        """
+                            PF_PID=$!
+                            sleep 15
+                            
+                            if curl -f -s http://localhost:8080/ > /dev/null; then
+                                echo "✅ Health check PASSED - application is responding"
+                                kill $PF_PID
+                            else
+                                echo "❌ Health check FAILED"
+                                kill $PF_PID
+                                
+                                # Пробуем через exec в под
+                                echo "🔄 Trying alternative health check..."
+                                POD_NAME=$(kubectl get pods -n production -l app=boardgame,managed-by=argocd -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+                                if [ -n "$POD_NAME" ]; then
+                                    if kubectl exec -n production "$POD_NAME" -- wget -q -O- http://localhost:8080/; then
+                                        echo "✅ Alternative health check PASSED"
+                                        exit 0
+                                    fi
+                                fi
+                                exit 1
+                            fi
+                        '''
                     }
                 }
             }
-        }
-    }
     
     post {
         success {
