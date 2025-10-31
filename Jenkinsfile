@@ -204,57 +204,50 @@ pipeline {
             }
         }
         
-        stage('Sync ArgoCD Application') {
-            steps {
-                script {
-                    echo "🔄 Triggering ArgoCD sync..."
-        
-                    withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
-                        sh '''
-                            set +e
-                            
-                            echo "Logging into ArgoCD..."
-                            argocd login ${ARGOCD_SERVER} \
-                                --auth-token $ARGOCD_TOKEN \
-                                --username "api" \
-                                --insecure \
-                                --grpc-web
-                            
-                            if [ $? -ne 0 ]; then
-                                echo "ArgoCD login failed"
-                                exit 1
-                            fi
-                            
-                            echo "Current application status:"
-                            argocd app get boardgame || echo "Cannot get application details"
-                            
-                            echo "Starting sync..."
-                            argocd app sync boardgame --force --prune
-                            
-                            SYNC_EXIT_CODE=$?
-                            if [ $SYNC_EXIT_CODE -eq 0 ]; then
-                                echo "Sync initiated successfully"
-                            else
-                                echo "Sync completed with exit code: $SYNC_EXIT_CODE"
-                            fi
-                            
-                            echo "Waiting for sync to complete..."
-                            argocd app wait boardgame --health --timeout 600
-                            
-                            WAIT_EXIT_CODE=$?
-                            if [ $WAIT_EXIT_CODE -eq 0 ]; then
-                                echo "Application synced and healthy"
-                            else
-                                echo "Wait completed with exit code: $WAIT_EXIT_CODE"
-                                argocd app get boardgame
-                            fi
-                            
-                            set -e
-                        '''
-                    }
-                }
+stage('Sync ArgoCD Application') {
+    steps {
+        script {
+            echo "🔄 Triggering ArgoCD sync..."
+
+            withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
+                sh '''
+                    set +e
+                    
+                    # Устанавливаем переменные окружения для ArgoCD
+                    export ARGOCD_SERVER="${ARGOCD_SERVER}"
+                    export ARGOCD_AUTH_TOKEN="$ARGOCD_TOKEN"
+                    export ARGOCD_OPTS="--insecure --grpc-web"
+                    
+                    echo "Checking ArgoCD connection..."
+                    argocd app get boardgame || echo "Cannot get application details"
+                    
+                    echo "Starting sync..."
+                    argocd app sync boardgame --force --prune
+                    
+                    SYNC_EXIT_CODE=$?
+                    if [ $SYNC_EXIT_CODE -eq 0 ]; then
+                        echo "Sync initiated successfully"
+                    else
+                        echo "Sync completed with exit code: $SYNC_EXIT_CODE"
+                    fi
+                    
+                    echo "Waiting for sync to complete..."
+                    argocd app wait boardgame --health --timeout 600
+                    
+                    WAIT_EXIT_CODE=$?
+                    if [ $WAIT_EXIT_CODE -eq 0 ]; then
+                        echo "Application synced and healthy"
+                    else
+                        echo "Wait completed with exit code: $WAIT_EXIT_CODE"
+                        argocd app get boardgame
+                    fi
+                    
+                    set -e
+                '''
             }
         }
+    }
+}
 
         stage('Verify Deployment') {
             steps {
