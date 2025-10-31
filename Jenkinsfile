@@ -74,7 +74,15 @@ pipeline {
                 }
             }
         }
-        
+        stage('Test SonarQube Connection') {
+        steps {
+            withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
+                sh '''
+                curl -u $SONAR_TOKEN: -s http://sonar.local.lab:9000/api/system/status
+                '''
+            }
+        }
+    }
         stage('Quality Gate') {
             steps {
                 echo "🚦 Waiting for Quality Gate..."
