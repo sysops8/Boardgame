@@ -83,6 +83,7 @@ pipeline {
             steps {
                 script {
                     sh """
+                        ls -R
                         sed -i 's|image: .*|image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}|' k8s_deployment-service.yaml
                     """
                 }
