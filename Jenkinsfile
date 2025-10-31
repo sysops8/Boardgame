@@ -122,7 +122,7 @@ pipeline {
                     withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                         sh """
                             export KUBECONFIG=${KUBECONFIG_FILE}
-                            kubectl rollout status deployment/boardgame-deployment --timeout=120s
+                            kubectl rollout status deployment/boardgame-deployment --timeout=10s
                         """
                     }
                 }
