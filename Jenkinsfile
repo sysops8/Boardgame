@@ -148,20 +148,17 @@ pipeline {
                         sh """
                             # Клонирование GitOps репозитория
                             rm -rf boardgame-gitops
-                            git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame-gitops.git
+                            git clone https://${GIT_TOKEN}@github.com/sysops8/Boardgame-gitops.git
                             cd boardgame-gitops
                             
-                            # Обновление image tag в deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/overlays/production/kustomization.yaml
-                            
-                            # Или обновление в base/deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
+                            # Обновление image tag в base/deployment.yaml
+                            sed -i "s|image: harbor.local.lab/library/myapp:[0-9]*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
                             
                             # Коммит и пуш
                             git config user.email "jenkins@local.lab"
                             git config user.name "Jenkins CI"
-                            git add .
-                            git commit -m "Update image to ${IMAGE_TAG} - Build #${env.BUILD_NUMBER}" || true
+                            git add base/deployment.yaml
+                            git commit -m "Update image to ${IMAGE_TAG} - Build #${env.BUILD_NUMBER}" || echo "No changes to commit"
                             git push origin main
                             
                             cd ..
