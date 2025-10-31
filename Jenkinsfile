@@ -13,7 +13,7 @@ pipeline {
 
         // SonarQube
         SONARQUBE_SERVER = "SonarQube"
-        SONARQUBE_URL = "http://sonarqube:9000"
+        SONARQUBE_URL = "http://sonar.local.lab:9000"
         SONARQUBE_CREDENTIALS = "sonar-token"
 
         // Kubernetes
