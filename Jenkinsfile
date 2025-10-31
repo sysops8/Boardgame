@@ -331,60 +331,33 @@ stage('Diagnose Pod Issues') {
     }
 }
         
-            stage('Health Check') {
-                steps {
-                    script {
-                        echo "🩺 Performing health check..."
+           stage('Health Check') {
+            steps {
+                script {
+                    echo "🩺 Performing health check..."
+                    
+                    sh '''
+                        # Короткое ожидание готовности
+                        kubectl wait --for=condition=ready \
+                            pod -l app=boardgame,managed-by=argocd \
+                            -n production \
+                            --timeout=60s
                         
-                        sh '''
-                            # Даем время на обновление deployment
-                            echo "⏳ Waiting for deployment to update..."
-                            sleep 30
-                            
-                            # Ждем готовности только правильных подов
-                            echo "📦 Waiting for correct pods to be ready..."
-                            if kubectl wait --for=condition=ready \
-                                pod -l app=boardgame,managed-by=argocd \
-                                -n production \
-                                --timeout=180s; then
-                                echo "✅ Correct pods are ready!"
-                            else
-                                echo "⚠️ Some pods not ready, but checking what we have..."
-                            fi
-                            
-                            # Проверяем текущие поды
-                            echo "=== Current pod status ==="
-                            kubectl get pods -n production -l app=boardgame -o wide
-                            
-                            # Health check на любом работающем поде
-                            echo "🌐 Performing health check..."
-                            kubectl port-forward svc/boardgame-service -n production 8080:8080 &
-                            PF_PID=$!
-                            sleep 15
-                            
-                            if curl -f -s http://localhost:8080/ > /dev/null; then
-                                echo "✅ Health check PASSED - application is responding"
-                                kill $PF_PID
-                            else
-                                echo "❌ Health check FAILED"
-                                kill $PF_PID
-                                
-                                # Пробуем через exec в под
-                                echo "🔄 Trying alternative health check..."
-                                POD_NAME=$(kubectl get pods -n production -l app=boardgame,managed-by=argocd -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-                                if [ -n "$POD_NAME" ]; then
-                                    if kubectl exec -n production "$POD_NAME" -- wget -q -O- http://localhost:8080/; then
-                                        echo "✅ Alternative health check PASSED"
-                                        exit 0
-                                    fi
-                                fi
-                                exit 1
-                            fi
-                        '''
-                    }
+                        # Прямой health check к LoadBalancer
+                        LB_IP="192.168.100.102"  # Ваш фиксированный IP из вывода
+                        echo "Testing: http://$LB_IP/"
+                        
+                        if curl -f -s http://$LB_IP/ > /dev/null; then
+                            echo "✅ Health check PASSED"
+                            echo "🎉 Application is accessible at http://$LB_IP/"
+                        else
+                            echo "❌ Health check FAILED"
+                            exit 1
+                        fi
+                    '''
                 }
             }
-    }
+        }
     post {
         success {
             script {
