@@ -67,22 +67,27 @@ pipeline {
                 script {
                     echo "🔍 Verifying image presence in Harbor..."
                     withCredentials([usernamePassword(credentialsId: HARBOR_CREDENTIALS, usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
-                        def checkCmd = """
-                            curl -s -o /dev/null -w "%{http_code}" \\
-                            -u ${HARBOR_USER}:${HARBOR_PASS} \\
-                            http://${HARBOR_URL}/v2/${HARBOR_PROJECT}/myapp/manifests/${env.BUILD_NUMBER}
-                        """
-                        def status = sh(script: checkCmd, returnStdout: true).trim()
-
+                        // Формируем URL отдельно, без интерполяции с секретами
+                        def harborUrl = "http://${HARBOR_URL}/v2/${HARBOR_PROJECT}/myapp/manifests/${env.BUILD_NUMBER}"
+        
+                        // Выполняем запрос к Harbor
+                        def status = sh(
+                            script: """curl -s -o /dev/null -w "%{http_code}" -u "${HARBOR_USER}:${HARBOR_PASS}" "${harborUrl}" """,
+                            returnStdout: true
+                        ).trim()
+        
+                        // Выносим сообщение в отдельную переменную, чтобы не было интерполяции с секретами
                         if (status != "200") {
-                            error("❌ Image ${IMAGE_TAG} not found in Harbor! Push may have failed.")
+                            def msg = "❌ Image ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER} not found in Harbor! Push may have failed."
+                            error(msg)
                         } else {
-                            echo "✅ Image ${IMAGE_TAG} verified in Harbor."
+                            echo "✅ Image ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER} verified in Harbor."
                         }
                     }
                 }
             }
         }
+
 
         stage('Publish Artifacts to Nexus') {
             steps {
