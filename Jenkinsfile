@@ -147,7 +147,7 @@ pipeline {
                     withCredentials([string(credentialsId: GITOPS_CREDENTIALS, variable: 'GIT_TOKEN')]) {
                         sh """
                             # Клонирование GitOps репозитория
-                            rm -rf boardgame-gitops
+                            rm -rf boardgame
                             git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame.git
                             cd boardgame
                             
