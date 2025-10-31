@@ -34,3 +34,7 @@ spec:
       port: 80
       targetPort: 8080 
   type: LoadBalancer # type of the service.
+  loadBalancerIP: 192.168.100.101   # 👈 фиксированный IP из пула MetalLB
+
+
+
