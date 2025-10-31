@@ -165,7 +165,7 @@ pipeline {
                             git push origin main
                             
                             cd ..
-                            rm -rf boardgame-gitops
+                            rm -rf boardgame
                         """
                     }
                 }
