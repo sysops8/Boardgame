@@ -19,7 +19,7 @@ pipeline {
         // ArgoCD
         ARGOCD_SERVER = "argocd.local.lab"
         ARGOCD_CREDENTIALS = "argocd-token"
-        GITOPS_REPO = "https://github.com/sysops8/boardgame.git"
+        GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"
         GITOPS_CREDENTIALS = "github-token"
         
         // Email
@@ -147,15 +147,15 @@ pipeline {
                     withCredentials([string(credentialsId: GITOPS_CREDENTIALS, variable: 'GIT_TOKEN')]) {
                         sh """
                             # Клонирование GitOps репозитория
-                            rm -rf boardgame
+                            rm -rf boardgame-gitops
                             git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame.git
                             cd boardgame
                             
                             # Обновление image tag в deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" gitops/base/production/kustomization.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/production/kustomization.yaml
                             
                             # Или обновление в base/deployment.yaml
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" gitops/base/deployment.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
                             
                             # Коммит и пуш
                             git config user.email "jenkins@local.lab"
@@ -165,7 +165,7 @@ pipeline {
                             git push origin main
                             
                             cd ..
-                            rm -rf boardgame
+                            rm -rf boardgame-gitops
                         """
                     }
                 }
