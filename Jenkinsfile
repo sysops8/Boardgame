@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Harbor
-        HARBOR_URL = "harbor.local.lab"
+        HARBOR_URL = "https://harbor.local.lab"
         HARBOR_PROJECT = "library"
         HARBOR_CREDENTIALS = "harbor-creds"
 
