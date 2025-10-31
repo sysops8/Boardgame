@@ -172,6 +172,28 @@ pipeline {
             }
         }
         
+        stage('Clean Old Deployments') {
+            steps {
+                script {
+                    echo "🧹 Cleaning old deployments..."
+                    
+                    sh '''
+                        # Удаляем старые deployment'ы с неправильными образами
+                        kubectl delete deployment boardgame -n production --ignore-not-found=true
+                        
+                        # Удаляем зависшие поды
+                        kubectl delete pods -n production -l app=boardgame,pod-template-hash=789547888f --ignore-not-found=true
+                        
+                        # Проверяем, что остались только правильные поды
+                        echo "=== Current pods after cleanup ==="
+                        kubectl get pods -n production -o wide
+                    '''
+                }
+            }
+        }
+
+
+        
         stage('Update GitOps Repo') {
             steps {
                 script {
