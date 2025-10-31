@@ -91,10 +91,11 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                    sh """
-                        export KUBECONFIG=${KUBECONFIG_FILE}
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG_FILE
                         kubectl apply -f k8s_deployment-service.yaml
-                    """
+                        kubectl rollout status deployment/boardgame-deployment --timeout=120s
+                    '''
                 }
             }
         }
