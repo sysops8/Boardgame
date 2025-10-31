@@ -1,62 +1,90 @@
 pipeline {
     agent any
-
+    
     environment {
         // Harbor
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
         HARBOR_CREDENTIALS = "harbor-creds"
-
+        
         // Nexus
         NEXUS_URL = "http://nexus.local.lab:8081/repository/maven-releases/"
         NEXUS_CREDENTIALS = "nexus-cred"
-
+        
         // SonarQube
         SONARQUBE_SERVER = "SonarQube"
         SONARQUBE_URL = "http://sonar.local.lab:9000"
         SONARQUBE_CREDENTIALS = "sonar-token"
-
-        // Kubernetes
-        KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
-
+        
+        // ArgoCD
+        ARGOCD_SERVER = "argocd.local.lab"
+        ARGOCD_CREDENTIALS = "argocd-token"
+        GITOPS_REPO = "https://github.com/sysops8/boardgame.git"
+        GITOPS_CREDENTIALS = "github-token"
+        
         // Email
         EMAIL_RECIPIENTS = "almastvx@gmail.com"
+        
+        // Image
+        IMAGE_NAME = "${HARBOR_URL}/${HARBOR_PROJECT}/myapp"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
-
+    
     stages {
-        stage('Checkout') {
+        stage('Checkout Source Code') {
             steps {
-                echo "Checking out source code..."
+                echo "📥 Checking out source code..."
                 checkout scm
             }
         }
-    stage('Set Build Version') {
-        steps {
-            script {
-                sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
-            }
-        }
-    }
-        stage('Build Docker Image') {
+        
+        stage('Set Build Version') {
             steps {
                 script {
-                    dockerImage = docker.build("${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}")
+                    echo "🏷️ Setting Maven version to 0.0.${env.BUILD_NUMBER}"
+                    sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
                 }
             }
         }
-
-        stage('Push Docker Image to Harbor') {
+        
+        stage('Build Application') {
             steps {
-                script {
-                    docker.withRegistry("http://${HARBOR_URL}", HARBOR_CREDENTIALS) {
-                        dockerImage.push()
-                        dockerImage.push('latest') // optional
-                    }
+                echo "🔨 Building Maven project..."
+                sh "mvn clean package -DskipTests"
+            }
+        }
+        
+        stage('Run Unit Tests') {
+            steps {
+                echo "🧪 Running unit tests..."
+                sh "mvn test"
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
                 }
             }
         }
-
-        stage('Publish Artifacts to Nexus') {
+        
+        stage('SonarQube Analysis') {
+            steps {
+                echo "📊 Running SonarQube analysis..."
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                    sh "mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL}"
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                echo "🚦 Waiting for Quality Gate..."
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false, credentialsId: SONARQUBE_CREDENTIALS
+                }
+            }
+        }
+        
+        stage('Publish to Nexus') {
             steps {
                 echo "📤 Publishing Maven artifacts to Nexus..."
                 configFileProvider([configFile(fileId: 'maven-settings', variable: 'MAVEN_SETTINGS')]) {
@@ -71,53 +99,76 @@ pipeline {
                 }
             }
         }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh "mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL}"
-                }
-            }
-        }
-        stage('Update K8s Manifest') {
-            steps {
-                script {
-                    echo "📝 Updating Kubernetes manifest with image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}"
         
-                    // Используем безопасную оболочку без Groovy-интерполяции
-                    sh '''
-                        IMAGE_TAG="${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${BUILD_NUMBER}"
-                        if [ ! -f k8s_deployment-service.yaml ]; then
-                            echo "❌ File k8s_deployment-service.yaml not found!"
-                            exit 1
-                        fi
-                        echo "Updating image to: $IMAGE_TAG"
-                        sed -i "0,/image:/s|image: .*|image: $IMAGE_TAG|" k8s_deployment-service.yaml
-                        echo "✅ Manifest updated successfully:"
-                        grep "image:" k8s_deployment-service.yaml
-                    '''
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "🐳 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
+                    dockerImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                    dockerImage.tag('latest')
                 }
             }
         }
-
-        stage('Update GitOps Repository') {
+        
+        stage('Security Scan with Trivy') {
+            steps {
+                echo "🔍 Scanning Docker image for vulnerabilities..."
+                sh """
+                    trivy image --severity HIGH,CRITICAL \
+                        --format table \
+                        --output trivy-report.txt \
+                        --exit-code 0 \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
+                }
+            }
+        }
+        
+        stage('Push to Harbor') {
             steps {
                 script {
-                    // Клонируем GitOps репозиторий
-                    sh '''
-                        git clone ${GITOPS_REPO} gitops-repo
-                        cd gitops-repo
-                        
-                        # Обновляем образ в манифестах
-                        sed -i 's|image:.*|image: ${FULL_IMAGE_NAME}|g' apps/boardgame/deployment.yaml
-                        
-                        # Коммитим и пушим изменения
-                        git config user.email "jenkins@local.lab"
-                        git config user.name "Jenkins"
-                        git add .
-                        git commit -m "Update boardgame to version ${IMAGE_TAG}"
-                        git push https://${GITHUB_TOKEN}@github.com/sysops8/boardgame.git HEAD:main
-                    '''
+                    echo "📦 Pushing Docker image to Harbor..."
+                    docker.withRegistry("https://${HARBOR_URL}", HARBOR_CREDENTIALS) {
+                        dockerImage.push("${IMAGE_TAG}")
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+        }
+        
+        stage('Update GitOps Repo') {
+            steps {
+                script {
+                    echo "📝 Updating GitOps repository with new image tag..."
+                    
+                    withCredentials([string(credentialsId: GITOPS_CREDENTIALS, variable: 'GIT_TOKEN')]) {
+                        sh """
+                            # Клонирование GitOps репозитория
+                            rm -rf boardgame-gitops
+                            git clone https://${GIT_TOKEN}@github.com/sysops8/boardgame.git
+                            cd boardgame-gitops
+                            
+                            # Обновление image tag в deployment.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/production/kustomization.yaml
+                            
+                            # Или обновление в base/deployment.yaml
+                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" base/deployment.yaml
+                            
+                            # Коммит и пуш
+                            git config user.email "jenkins@local.lab"
+                            git config user.name "Jenkins CI"
+                            git add .
+                            git commit -m "Update image to ${IMAGE_TAG} - Build #${env.BUILD_NUMBER}" || true
+                            git push origin main
+                            
+                            cd ..
+                            rm -rf boardgame-gitops
+                        """
+                    }
                 }
             }
         }
@@ -125,34 +176,164 @@ pipeline {
         stage('Sync ArgoCD Application') {
             steps {
                 script {
-                    // Используем ArgoCD CLI для синхронизации
-                    sh '''
-                        argocd app sync boardgame
-                        argocd app wait boardgame --health
-                        argocd app get boardgame
-                    '''
+                    echo "🔄 Triggering ArgoCD sync..."
+                    
+                    withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
+                        sh """
+                            # Логин в ArgoCD
+                            argocd login ${ARGOCD_SERVER} \
+                                --auth-token ${ARGOCD_TOKEN} \
+                                --insecure
+                            
+                            # Синхронизация приложения
+                            argocd app sync boardgame --force
+                            
+                            # Ожидание завершения
+                            argocd app wait boardgame --timeout 300
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    echo "✅ Verifying deployment in Kubernetes..."
+                    
+                    withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
+                        sh """
+                            # Проверка статуса приложения в ArgoCD
+                            argocd app get boardgame
+                            
+                            # Проверка подов в Kubernetes
+                            kubectl get pods -n production -l app=boardgame
+                            kubectl rollout status deployment/boardgame-deployment -n production --timeout=300s
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                script {
+                    echo "🩺 Performing health check..."
+                    
+                    retry(3) {
+                        sleep(10)
+                        sh """
+                            # Проверка readiness подов
+                            kubectl wait --for=condition=ready pod \
+                                -l app=boardgame \
+                                -n production \
+                                --timeout=60s
+                            
+                            # HTTP health check
+                            LOAD_BALANCER_IP=\$(kubectl get svc boardgame-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                            curl -f http://\${LOAD_BALANCER_IP}/ || exit 1
+                        """
+                    }
                 }
             }
         }
     }
-
+    
     post {
         success {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "✅ SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.\nBuild URL: ${env.BUILD_URL}"
+            script {
+                def appUrl = "http://boardgame.local.lab"
+                def argocdUrl = "https://${ARGOCD_SERVER}/applications/boardgame"
+                
+                emailext(
+                    subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <h2 style="color: #28a745;">🎉 Pipeline Executed Successfully!</h2>
+                            <table style="border-collapse: collapse; width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">#${env.BUILD_NUMBER}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Docker Image:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${IMAGE_NAME}:${IMAGE_TAG}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Application:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${appUrl}">${appUrl}</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ArgoCD:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${argocdUrl}">${argocdUrl}</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build URL:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin-top: 20px;">
+                                <strong>Deployed by ArgoCD via GitOps</strong><br>
+                                GitOps Repo: ${GITOPS_REPO}
+                            </p>
+                        </body>
+                        </html>
+                    """,
+                    to: EMAIL_RECIPIENTS,
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'trivy-report.txt'
+                )
+            }
         }
+        
         failure {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "❌ FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
+            emailext(
+                subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        <h2 style="color: #dc3545;">❌ Pipeline Failed!</h2>
+                        <table style="border-collapse: collapse; width: 100%;">
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">#${env.BUILD_NUMBER}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Failed Stage:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${env.STAGE_NAME}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Console:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                    <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </body>
+                    </html>
+                """,
+                to: EMAIL_RECIPIENTS,
+                mimeType: 'text/html'
+            )
         }
-        unstable {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "⚠️ UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
-        }
+        
         always {
+            echo "🧹 Cleaning workspace..."
             cleanWs()
         }
     }
