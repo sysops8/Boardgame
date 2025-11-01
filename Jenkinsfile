@@ -96,7 +96,7 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                         sh """
                             # Клонируем GitOps репозиторий
-                            git clone https://${GIT_USER}:${GIT_TOKEN}@${GITOPS_REPO}  #https://} gitops-repo
+                            git clone https://${GIT_USER}:${GIT_TOKEN}@${GITOPS_REPO}
                             cd Boardgame-gitops
                             
                             # Обновляем версию образа в манифестах
