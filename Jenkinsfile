@@ -97,7 +97,7 @@ pipeline {
                         sh """
                             # Клонируем GitOps репозиторий
                             git clone https://${GIT_USER}:${GIT_TOKEN}@${GITOPS_REPO}  #https://} gitops-repo
-                            cd gitops-repo
+                            cd Boardgame-gitops
                             
                             # Обновляем версию образа в манифестах
                             sed -i 's|newTag:.*|newTag: ${env.BUILD_NUMBER}|g' apps/boardgame/kustomization.yaml
