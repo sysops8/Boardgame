@@ -1,7 +1,7 @@
 pipeline {
     agent any
-    MY_APP = 'boardgame'    
     environment { 
+        MY_APP = 'boardgame'
         // Harbor
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
