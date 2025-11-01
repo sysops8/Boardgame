@@ -136,11 +136,8 @@ pipeline {
                     
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
                         sh '''                    
-                            # Логин в ArgoCD
+                            # Логин в ArgoCD и синхронизируем приложение
                             argocd app sync $MY_APP --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
-
-                            # Синхронизируем приложение
-                            argocd app sync "$MY_APP" --insecure
                             
                             # Ждем завершения синхронизации
                             argocd app wait "$MY_APP" --health --timeout 300 
