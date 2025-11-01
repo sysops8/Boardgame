@@ -344,7 +344,7 @@ stage('Diagnose Pod Issues') {
                             --timeout=60s
                         
                         # Прямой health check к LoadBalancer
-                        LB_IP="192.168.100.102"  # Ваш фиксированный IP из вывода
+                        LB_IP="192.168.100.101"  # Ваш фиксированный IP из вывода
                         echo "Testing: http://$LB_IP/"
                         
                         if curl -f -s http://$LB_IP/ > /dev/null; then
