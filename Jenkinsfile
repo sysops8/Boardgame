@@ -143,7 +143,7 @@ pipeline {
                             argocd app sync boardgame --server ${ARGOCD_SERVER} --auth-token "$ARGOCD_TOKEN" --insecure
 
                             # Синхронизируем приложение
-                            argocd app sync "$MY_APP"
+                            argocd app sync "$MY_APP" --insecure
                             
                             # Ждем завершения синхронизации
                             argocd app wait "$MY_APP" --health --timeout 300
