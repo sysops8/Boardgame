@@ -140,7 +140,7 @@ pipeline {
                             argocd app sync $MY_APP --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
                             
                             # Ждем завершения синхронизации
-                            argocd app wait "$MY_APP" --health --timeout 300 --insecure
+                            argocd app wait "$MY_APP" --health --timeout 5 --insecure
                             
                             # Проверяем статус
                             argocd app get "$MY_APP" 
