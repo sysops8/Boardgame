@@ -88,48 +88,46 @@ pipeline {
             }
         }
 
-        stage('Update GitOps Repository') {
-            steps {
-                script {
-                    echo "🚀 Updating GitOps repository with new image version..."
-                    
-                    withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
-                        // Используем безопасный подход с одинарными кавычками и конкатенацией
-                        sh '''
-                            # Клонируем GitOps репозиторий
-                            git clone https://$GIT_USER:$GIT_TOKEN@github.com/sysops8/Boardgame-gitops.git gitops-repo
-                            cd gitops-repo
-                            
-                            echo "=== Проверка структуры репозитория ==="
-                            ls -la
-                            echo "=== Проверка содержимого apps/boardgame/ ==="
-                            ls -la apps/boardgame/
-                            
-                            echo "=== Текущее содержимое kustomization.yaml ==="
-                            cat apps/boardgame/kustomization.yaml
-                            
-                            # Обновляем версию образа в манифестах
-                            sed -i 's|newTag:.*|newTag: ''' + env.BUILD_NUMBER + '''|g' apps/boardgame/kustomization.yaml
-                            
-                            echo "=== Обновленное содержимое kustomization.yaml ==="
-                            cat apps/boardgame/kustomization.yaml
-                            
-                            echo "=== Статус git ==="
-                            git status
-                            
-                            # Коммитим и пушим изменения
-                            git config user.email "jenkins@local.lab"
-                            git config user.name "Jenkins CI"
-                            git add apps/boardgame/kustomization.yaml
-                            git commit -m "Deploy myapp version ''' + env.BUILD_NUMBER + '''"
-                            git push origin main
-                            
-                            echo "✅ GitOps repository updated successfully"
-                        '''
+            stage('Update GitOps Repository') {
+                steps {
+                    script {
+                        echo "🚀 Updating GitOps repository with new image version..."
+                        
+                        withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                            sh '''
+                                # Клонируем GitOps репозиторий
+                                git clone https://$GIT_USER:$GIT_TOKEN@github.com/sysops8/Boardgame-gitops.git gitops-repo
+                                cd gitops-repo
+                                
+                                echo "=== Проверка структуры репозитория ==="
+                                find . -name "*.yaml" -type f
+                                
+                                echo "=== Текущее содержимое base/boardgame/kustomization.yaml ==="
+                                cat base/boardgame/kustomization.yaml
+                                
+                                # Обновляем версию образа в базовых манифестах
+                                echo "=== Обновляем версию образа ==="
+                                sed -i 's|newTag:.*|newTag: ''' + env.BUILD_NUMBER + '''|g' base/boardgame/kustomization.yaml
+                                
+                                echo "=== Обновленное содержимое base/boardgame/kustomization.yaml ==="
+                                cat base/boardgame/kustomization.yaml
+                                
+                                echo "=== Статус git ==="
+                                git status
+                                
+                                # Коммитим и пушим изменения
+                                git config user.email "jenkins@local.lab"
+                                git config user.name "Jenkins CI"
+                                git add base/boardgame/kustomization.yaml
+                                git commit -m "Deploy myapp version ''' + env.BUILD_NUMBER + '''"
+                                git push origin main
+                                
+                                echo "✅ GitOps repository updated successfully"
+                            '''
+                        }
                     }
                 }
             }
-        }
 
         stage('Sync ArgoCD Application') {
             steps {
