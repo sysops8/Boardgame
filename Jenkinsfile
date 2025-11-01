@@ -136,6 +136,11 @@ pipeline {
                     
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
                         sh '''
+                            # Устанавливаем переменные окружения для ArgoCD
+                            export ARGOCD_SERVER="${ARGOCD_SERVER}"
+                            export ARGOCD_AUTH_TOKEN="$ARGOCD_TOKEN"
+                            export ARGOCD_OPTS="--insecure --grpc-web"
+                    
                             # Логин в ArgoCD
                             argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
                             
