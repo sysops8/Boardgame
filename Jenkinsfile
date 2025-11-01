@@ -108,9 +108,6 @@ pipeline {
                                 
                                 # Обновляем версию образа в базовых манифестах
                                 echo "=== Обновляем версию образа ==="
-                                #sed -i 's|newTag:.*|newTag: ''' + env.BUILD_NUMBER + '''|g' base/boardgame/kustomization.yaml
-                                #sed -i 's|newTag:.*|newTag: "${BUILD_NUMBER}"|g' base/boardgame/kustomization.yaml
-                                #sed -i `s|newTag:.*|newTag: "${BUILD_NUMBER}"|g` base/boardgame/kustomization.yaml
                                 sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' base/boardgame/kustomization.yaml
                                 
                                 echo "=== Обновленное содержимое base/boardgame/kustomization.yaml ==="
@@ -141,8 +138,6 @@ pipeline {
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
                         sh '''                    
                             # Логин в ArgoCD
-                            #argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
-                            #argocd login ${ARGOCD_SERVER} --auth-token "$ARGOCD_TOKEN"  --insecure
                             argocd app sync ${MY_APP} --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
 
                             # Синхронизируем приложение
