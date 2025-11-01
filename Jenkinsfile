@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     environment {
+        MYAPP = "boardgame"
         // Harbor
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
@@ -135,23 +136,19 @@ pipeline {
                     echo "🔄 Synchronizing ArgoCD application..."
                     
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
-                        sh '''
-                            # Устанавливаем переменные окружения для ArgoCD
-                            export ARGOCD_SERVER="${ARGOCD_SERVER}"
-                            export ARGOCD_AUTH_TOKEN="$ARGOCD_TOKEN"
-                            export ARGOCD_OPTS="--insecure --grpc-web"
-                    
+                        sh '''                    
                             # Логин в ArgoCD
-                            argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
-                            
+                            # argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
+                            argocd app sync boardgame --server env.ARGOCD_SERVER --auth-token "$ARGOCD_TOKEN" 
+
                             # Синхронизируем приложение
-                            argocd app sync myapp
+                            argocd app sync "$MY_APP"
                             
                             # Ждем завершения синхронизации
-                            argocd app wait myapp --health --timeout 300
+                            argocd app wait "$MY_APP" --health --timeout 300
                             
                             # Проверяем статус
-                            argocd app get myapp
+                            argocd app get "$MY_APP"
                             
                             echo "✅ ArgoCD synchronization completed"
                         '''
@@ -196,7 +193,7 @@ The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
 
 📦 Deployment Details:
 - Image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}
-- ArgoCD Application: myapp
+- ArgoCD Application: ${MY_APP}
 - GitOps Repository: ${GITOPS_REPO}
 
 🔗 Links:
