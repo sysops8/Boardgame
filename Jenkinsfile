@@ -143,7 +143,7 @@ pipeline {
                             # Логин в ArgoCD
                             #argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
                             #argocd login ${ARGOCD_SERVER} --auth-token "$ARGOCD_TOKEN"  --insecure
-                            argocd app sync "$MY_APP" --server ${ARGOCD_SERVER}  --auth-token "$ARGOCD_TOKEN"   --grpc-web   --insecure
+                            argocd app sync ${MY_APP} --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
 
                             # Синхронизируем приложение
                             argocd app sync "$MY_APP" --insecure
