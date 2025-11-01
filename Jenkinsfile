@@ -25,7 +25,7 @@ pipeline {
         // ArgoCD
         ARGOCD_SERVER = "argocd.local.lab"
         ARGOCD_CREDENTIALS = "argocd-token"
-        GITOPS_REPO = "https://github.com/sysops8/boardgame-gitops.git"
+        GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"
         GITOPS_CREDENTIALS = "github-token"
     }
 
@@ -96,7 +96,7 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                         sh """
                             # Клонируем GitOps репозиторий
-                            git clone https://${GIT_USER}:${GIT_TOKEN}@${GITOPS_REPO#https://} gitops-repo
+                            git clone https://${GIT_USER}:${GIT_TOKEN}@${GITOPS_REPO}  #https://} gitops-repo
                             cd gitops-repo
                             
                             # Обновляем версию образа в манифестах
