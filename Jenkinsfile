@@ -25,7 +25,7 @@ pipeline {
         // ArgoCD
         ARGOCD_SERVER = "argocd.local.lab"
         ARGOCD_CREDENTIALS = "argocd-token"
-        GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"
+        GITOPS_REPO = "github.com/sysops8/Boardgame-gitops.git"
         GITOPS_CREDENTIALS = "github-gitops-token"
     }
 
