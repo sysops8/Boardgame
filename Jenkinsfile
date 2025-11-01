@@ -141,7 +141,8 @@ pipeline {
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
                         sh '''                    
                             # Логин в ArgoCD
-                            # argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
+                            argocd login ''' + env.ARGOCD_SERVER + ''' --username admin --password "$ARGOCD_TOKEN" --insecure
+                            
                             argocd app sync boardgame --server ${ARGOCD_SERVER} --auth-token "$ARGOCD_TOKEN" --insecure
 
                             # Синхронизируем приложение
