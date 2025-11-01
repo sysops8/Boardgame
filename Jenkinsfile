@@ -25,8 +25,8 @@ pipeline {
         // ArgoCD
         ARGOCD_SERVER = "argocd.local.lab"
         ARGOCD_CREDENTIALS = "argocd-token"
-        GITOPS_REPO = "https://github.com/YOUR_USERNAME/boardgame-gitops.git"
-        GITOPS_CREDENTIALS = "gitops-github-token"
+        GITOPS_REPO = "https://github.com/sysops8/boardgame-gitops.git"
+        GITOPS_CREDENTIALS = "github-token"
     }
 
     stages {
