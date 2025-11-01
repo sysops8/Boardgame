@@ -143,7 +143,7 @@ pipeline {
                             # argocd app wait "$MY_APP" --health --timeout 5 --insecure
                             
                             # Проверяем статус
-                            argocd app get "$MY_APP" 
+                            argocd app get "$MY_APP" --insecure
                             
                             echo "✅ ArgoCD synchronization completed"
                         '''
