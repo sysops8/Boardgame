@@ -108,7 +108,7 @@ pipeline {
                                 
                                 # Обновляем версию образа в базовых манифестах
                                 echo "=== Обновляем версию образа ==="
-                                №sed -i 's|newTag:.*|newTag: ''' + env.BUILD_NUMBER + '''|g' base/boardgame/kustomization.yaml
+                                #sed -i 's|newTag:.*|newTag: ''' + env.BUILD_NUMBER + '''|g' base/boardgame/kustomization.yaml
                                 sed -i 's|newTag:.*|newTag: "${BUILD_NUMBER}"|g' base/boardgame/kustomization.yaml
                                 
                                 echo "=== Обновленное содержимое base/boardgame/kustomization.yaml ==="
