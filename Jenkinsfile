@@ -152,12 +152,8 @@ pipeline {
         // Зайлите на SonarQube -> Administration -> Projects -> Managment -> configuration -> webhooks -> 
         // URL link: http://jenkins.local.lab:8080/sonarqube-webhook/
             steps {
-                timeout(time: 1, unit: 'MINUTES') {
+                timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
-                    echo "🔍 Quality Gate status: ${qg.status}"
-                    if (qg.status != 'OK') {
-                        echo "⚠️ Quality Gate failed, but continuing for now."
-                    }
                 }
             }
         }
