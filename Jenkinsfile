@@ -226,18 +226,18 @@ pipeline {
             mail to: "${EMAIL_RECIPIENTS}",
                 subject: "✅ SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                 body: """
-The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
-
-📦 Deployment Details:
-- Image: ${HARBOR_URL}/${HARBOR_PROJECT}/${MY_APP}:${env.BUILD_NUMBER}
-- ArgoCD Application: ${MY_APP}
-- GitOps Repository: ${GITOPS_REPO}
-
-🔗 Links:
-- Build URL: ${env.BUILD_URL}
-- ArgoCD UI: https://${ARGOCD_SERVER}
-- Application: https://boardgame.local.lab
-"""
+                The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
+                
+                📦 Deployment Details:
+                - Image: ${HARBOR_URL}/${HARBOR_PROJECT}/${MY_APP}:${env.BUILD_NUMBER}
+                - ArgoCD Application: ${MY_APP}
+                - GitOps Repository: ${GITOPS_REPO}
+                
+                🔗 Links:
+                - Build URL: ${env.BUILD_URL}
+                - ArgoCD UI: https://${ARGOCD_SERVER}
+                - Application: https://boardgame.local.lab
+                """
         }
         failure {
             mail to: "${EMAIL_RECIPIENTS}",
