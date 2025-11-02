@@ -31,6 +31,9 @@ pipeline {
         GITOPS_CREDENTIALS = "github-gitops-token"
         GITOPS_KUSTOMIZATION_PATH = "apps/boardgame/kustomization.yaml"
 
+        IMAGE_NAME = "${HARBOR_URL}/${HARBOR_PROJECT}/myapp"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+
         // Tools
         SCANNER_HOME = tool 'sonar-scanner'
     }
