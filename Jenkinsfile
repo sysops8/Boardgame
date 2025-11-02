@@ -1,11 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.9.4-eclipse-temurin-17'
-            args '-u root:root' // чтобы позволить установку trivy и sonar-scanner
-        }
-    }
-
+    agent any
     environment { 
         // AppName
         MY_APP = 'boardgame'
@@ -36,31 +30,17 @@ pipeline {
         GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"  
         GITOPS_CREDENTIALS = "github-gitops-token"
         GITOPS_KUSTOMIZATION_PATH = "apps/boardgame/kustomization.yaml"
+
+        // Tools
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+
+    tools {
+        jdk 'java17'
+        maven 'maven3.6'
     }
 
     stages {
-
-        stage('Prepare Environment') {
-            steps {
-                sh '''
-                    apt-get update -y
-                    apt-get install -y curl wget jq git
-                    if ! command -v trivy >/dev/null 2>&1; then
-                        echo "Installing Trivy..."
-                        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-                        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" > /etc/apt/sources.list.d/trivy.list
-                        apt-get update && apt-get install -y trivy
-                    fi
-                    if ! command -v sonar-scanner >/dev/null 2>&1; then
-                        echo "Installing Sonar Scanner..."
-                        apt-get install -y unzip
-                        wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-                        unzip sonar-scanner-cli-5.0.1.3006-linux.zip -d /opt/
-                        ln -s /opt/sonar-scanner-*/bin/sonar-scanner /usr/local/bin/sonar-scanner
-                    fi
-                '''
-            }
-        }
 
         stage('Checkout') {
             steps {
@@ -159,9 +139,9 @@ pipeline {
             steps {
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
                     sh """
-                        sonar-scanner \
-                        -Dsonar.projectKey=${MY_APP} \
+                        ${SCANNER_HOME}/bin/sonar-scanner \
                         -Dsonar.projectName=${MY_APP} \
+                        -Dsonar.projectKey=${MY_APP} \
                         -Dsonar.host.url=${SONARQUBE_URL} \
                         -Dsonar.java.binaries=target/classes
                     """
@@ -187,8 +167,8 @@ pipeline {
                             git clone https://$GIT_USER:$GIT_TOKEN@github.com/sysops8/Boardgame-gitops.git gitops-repo
                             cd gitops-repo
 
+                            echo "=== Updating image version ==="
                             sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' ${GITOPS_KUSTOMIZATION_PATH}
-
                             git config user.email "jenkins@local.lab"
                             git config user.name "Jenkins CI"
                             git add ${GITOPS_KUSTOMIZATION_PATH}
