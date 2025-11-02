@@ -33,6 +33,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 echo "Checking out source code..."
@@ -40,10 +41,19 @@ pipeline {
             }
         }
 
-        stage('Set Build Version') {
+        stage('Compile') {
             steps {
-                script {
-                    sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
+                sh 'mvn clean compile'
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
                 }
             }
         }
