@@ -148,7 +148,7 @@ pipeline {
                 }
             }
         }
-
+        // Для этой стадии нужно настроить вебхук от sonar до jenkins. Administration -> Projects -> Managment -> configuration -> webhooks -> http://jenkins.local:8080/sonarqube-webhook/
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
