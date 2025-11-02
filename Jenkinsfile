@@ -148,18 +148,19 @@ pipeline {
             }
         }
 
-        stage('SonarQube Quality Gate') {
+         stage('Quality Gate') {
             steps {
-                timeout(time: 1, unit: 'MINUTES') {                    
-                    //Waiting webhook from SonarQube
-                    def qg = waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
-                    echo "✅ Quality Gate status: ${qg.status}"
-                    if (qg.status != 'OK') {
-                        echo "⚠️ Warning: Quality Gate status is '${qg.status}', continuing pipeline anyway."
+                script {
+                    echo "⏳ Waiting for SonarQube Quality Gate result..."
+                    timeout(time: 3, unit: 'MINUTES') {
+                        def qg = waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
+                        echo "✅ Quality Gate status: ${qg.status}"
+                        if (qg.status != 'OK') {
+                            echo "⚠️ Warning: Quality Gate status is '${qg.status}', continuing pipeline anyway."
                         }
+                    }
                 }
             }
-        }
 
         stage('Update GitOps Repository') {
             steps {
