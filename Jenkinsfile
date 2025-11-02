@@ -26,7 +26,7 @@ pipeline {
         // ArgoCD
         ARGOCD_SERVER = "argocd.local.lab"
         ARGOCD_CREDENTIALS = "argocd-token"
-        GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"  // Добавлен https://
+        GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"  
         GITOPS_CREDENTIALS = "github-gitops-token"
         GITOPS_KUSTOMIZATION_PATH = "apps/boardgame/kustomization.yaml"
     }
@@ -105,14 +105,14 @@ pipeline {
                                 find . -name "*.yaml" -type f
                                 
                                 echo "=== Текущее содержимое base/boardgame/kustomization.yaml ==="
-                                cat base/boardgame/kustomization.yaml
+                                cat ${GITOPS_KUSTOMIZATION_PATH}
                                 
                                 # Обновляем версию образа в базовых манифестах
                                 echo "=== Обновляем версию образа ==="
                                 #sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' base/boardgame/kustomization.yaml
                                 sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' ${GITOPS_KUSTOMIZATION_PATH}
-                                echo "=== Обновленное содержимое base/boardgame/kustomization.yaml ==="
-                                cat base/boardgame/kustomization.yaml
+                                echo "=== Обновленное содержимое apps/boardgame/kustomization.yaml ==="
+                                cat ${GITOPS_KUSTOMIZATION_PATH}
                                 
                                 echo "=== Статус git ==="
                                 git status
@@ -120,7 +120,7 @@ pipeline {
                                 # Коммитим и пушим изменения
                                 git config user.email "jenkins@local.lab"
                                 git config user.name "Jenkins CI"
-                                git add base/boardgame/kustomization.yaml
+                                git add ${GITOPS_KUSTOMIZATION_PATH}
                                 git commit -m "Deploy myapp version ''' + env.BUILD_NUMBER + '''"
                                 git push origin main
                                 
