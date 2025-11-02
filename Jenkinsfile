@@ -1,6 +1,7 @@
 pipeline {
     agent any
     environment { 
+        // AppName
         MY_APP = 'boardgame'
         // Harbor
         HARBOR_URL = "harbor.local.lab"
@@ -27,6 +28,7 @@ pipeline {
         ARGOCD_CREDENTIALS = "argocd-token"
         GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"  // Добавлен https://
         GITOPS_CREDENTIALS = "github-gitops-token"
+        GITOPS_KUSTOMIZATION_PATH = "apps/boardgame/kustomization.yaml"
     }
 
     stages {
@@ -108,7 +110,7 @@ pipeline {
                                 # Обновляем версию образа в базовых манифестах
                                 echo "=== Обновляем версию образа ==="
                                 #sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' base/boardgame/kustomization.yaml
-                                sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' apps/boardgame/kustomization.yaml
+                                sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' ${GITOPS_KUSTOMIZATION_PATH}
                                 echo "=== Обновленное содержимое base/boardgame/kustomization.yaml ==="
                                 cat base/boardgame/kustomization.yaml
                                 
