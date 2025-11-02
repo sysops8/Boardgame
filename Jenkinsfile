@@ -148,7 +148,7 @@ pipeline {
             }
         }
 
-         stage('Quality Gate') {
+        stage('Quality Gate') {
             steps {
                 script {
                     echo "⏳ Waiting for SonarQube Quality Gate result..."
@@ -161,6 +161,7 @@ pipeline {
                     }
                 }
             }
+        }
 
         stage('Update GitOps Repository') {
             steps {
