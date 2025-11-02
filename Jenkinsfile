@@ -220,7 +220,7 @@ pipeline {
                 }
             }
         }
-    }
+    
 
     post {
         success {
@@ -256,4 +256,4 @@ The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
         }
     }
 }
-}
+
