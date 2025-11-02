@@ -148,7 +148,7 @@ pipeline {
                 }
             }
         }
-
+        // Создайте webhook в SonarQube (projects) на адрес http://jenkins.local.lab:8080/sonarqube-webhook/
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
