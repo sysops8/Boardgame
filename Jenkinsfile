@@ -30,13 +30,52 @@ pipeline {
         GITOPS_REPO = "https://github.com/sysops8/Boardgame-gitops.git"  
         GITOPS_CREDENTIALS = "github-gitops-token"
         GITOPS_KUSTOMIZATION_PATH = "apps/boardgame/kustomization.yaml"
+
+        // Tools
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+
+    tools {
+        jdk 'java17'
+        maven 'maven3.6'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 echo "Checking out source code..."
                 checkout scm
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                sh 'mvn clean compile'
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Trivy FS Scan') {
+            steps {
+                sh '''
+                    trivy fs \
+                        --format table \
+                        --output trivy-fs-report.html \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 0 \
+                        .
+                '''
             }
         }
 
@@ -51,8 +90,21 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}")
+                    dockerImage = docker.build("${HARBOR_URL}/${HARBOR_PROJECT}/${MY_APP}:${env.BUILD_NUMBER}")
                 }
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            steps {
+                sh """
+                    trivy image \
+                        --format table \
+                        --output trivy-image-report.html \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 0 \
+                        ${HARBOR_URL}/${HARBOR_PROJECT}/${MY_APP}:${env.BUILD_NUMBER}
+                """
             }
         }
 
@@ -86,74 +138,56 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh "mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL}"
+                    sh """
+                        ${SCANNER_HOME}/bin/sonar-scanner \
+                        -Dsonar.projectName=${MY_APP} \
+                        -Dsonar.projectKey=${MY_APP} \
+                        -Dsonar.host.url=${SONARQUBE_URL} \
+                        -Dsonar.java.binaries=target/classes
+                    """
                 }
             }
         }
-        
-        stage('Unit Tests') {
+
+        stage('Quality Gate') {
             steps {
-                sh 'mvn test'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
+                }
             }
         }
-        
-            stage('Update GitOps Repository') {
-                steps {
-                    script {
-                        echo "🚀 Updating GitOps repository with new image version..."
-                        
-                        withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
-                            sh '''
-                                # Клонируем GitOps репозиторий
-                                git clone https://$GIT_USER:$GIT_TOKEN@github.com/sysops8/Boardgame-gitops.git gitops-repo
-                                cd gitops-repo
-                                
-                                echo "=== Проверка структуры репозитория ==="
-                                find . -name "*.yaml" -type f
-                                
-                                echo "=== Текущее содержимое base/boardgame/kustomization.yaml ==="
-                                cat ${GITOPS_KUSTOMIZATION_PATH}
-                                
-                                # Обновляем версию образа в базовых манифестах
-                                echo "=== Обновляем версию образа ==="
-                                sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' ${GITOPS_KUSTOMIZATION_PATH}
-                                echo "=== Обновленное содержимое apps/boardgame/kustomization.yaml ==="
-                                cat ${GITOPS_KUSTOMIZATION_PATH}
-                                
-                                echo "=== Статус git ==="
-                                git status
-                                
-                                # Коммитим и пушим изменения
-                                git config user.email "jenkins@local.lab"
-                                git config user.name "Jenkins CI"
-                                git add ${GITOPS_KUSTOMIZATION_PATH}
-                                git commit -m "Deploy myapp version ''' + env.BUILD_NUMBER + '''"
-                                git push origin main
-                                
-                                echo "✅ GitOps repository updated successfully"
-                            '''
-                        }
+
+        stage('Update GitOps Repository') {
+            steps {
+                script {
+                    echo "🚀 Updating GitOps repository with new image version..."
+                    
+                    withCredentials([usernamePassword(credentialsId: GITOPS_CREDENTIALS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                        sh '''
+                            git clone https://$GIT_USER:$GIT_TOKEN@github.com/sysops8/Boardgame-gitops.git gitops-repo
+                            cd gitops-repo
+
+                            echo "=== Updating image version ==="
+                            sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' ${GITOPS_KUSTOMIZATION_PATH}
+                            git config user.email "jenkins@local.lab"
+                            git config user.name "Jenkins CI"
+                            git add ${GITOPS_KUSTOMIZATION_PATH}
+                            git commit -m "Deploy ${MY_APP} version '${BUILD_NUMBER}'"
+                            git push origin main
+                        '''
                     }
                 }
             }
+        }
 
         stage('Sync ArgoCD Application') {
             steps {
                 script {
                     echo "🔄 Synchronizing ArgoCD application..."
-                    
                     withCredentials([string(credentialsId: ARGOCD_CREDENTIALS, variable: 'ARGOCD_TOKEN')]) {
-                        sh '''                    
-                            # Логин в ArgoCD и синхронизируем приложение
-                            argocd app sync $MY_APP --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
-                            
-                            # Ждем завершения синхронизации
-                            # argocd app wait "$MY_APP" --health --timeout 5 --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
-                            
-                            #Проверяем статус
-                            argocd app get "$MY_APP" --server ${ARGOCD_SERVER}  --auth-token ${ARGOCD_TOKEN}   --grpc-web   --insecure
-                            
-                            echo "✅ ArgoCD synchronization completed"
+                        sh '''
+                            argocd app sync $MY_APP --server ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web --insecure
+                            argocd app get "$MY_APP" --server ${ARGOCD_SERVER} --auth-token ${ARGOCD_TOKEN} --grpc-web --insecure
                         '''
                     }
                 }
@@ -195,7 +229,7 @@ pipeline {
 The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
 
 📦 Deployment Details:
-- Image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}
+- Image: ${HARBOR_URL}/${HARBOR_PROJECT}/${MY_APP}:${env.BUILD_NUMBER}
 - ArgoCD Application: ${MY_APP}
 - GitOps Repository: ${GITOPS_REPO}
 
@@ -216,6 +250,7 @@ The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
                 body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
         }
         always {
+            archiveArtifacts artifacts: 'trivy-*-report.html', allowEmptyArchive: true
             cleanWs()
         }
     }
