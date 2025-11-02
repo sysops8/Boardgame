@@ -258,9 +258,39 @@ pipeline {
                 """
         }
         failure {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "❌ FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
+                echo "❌ Pipeline failed!"
+                emailext(
+                    subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <h2 style="color: #dc3545;">❌ Pipeline Failed!</h2>
+                            <table style="border-collapse: collapse; width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">#${env.BUILD_NUMBER}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Failed Stage:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${env.STAGE_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Console:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </body>
+                        </html>
+                    """,
+                    to: EMAIL_RECIPIENTS,
+                    mimeType: 'text/html'
+                )
         }
         unstable {
             mail to: "${EMAIL_RECIPIENTS}",
