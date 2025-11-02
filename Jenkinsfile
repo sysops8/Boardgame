@@ -241,6 +241,7 @@ pipeline {
 
     post {
         success {
+            script {
                 def appUrl = "http://boardgame.local.lab"
                 def argocdUrl = "https://${ARGOCD_SERVER}/applications/boardgame"
                 
@@ -296,6 +297,7 @@ pipeline {
                     mimeType: 'text/html',
                     attachmentsPattern: 'trivy-report.txt'
                 )
+            }
         }
         failure {
                     echo "❌ Pipeline failed!"
