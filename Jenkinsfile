@@ -201,8 +201,13 @@ pipeline {
                     withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                         sh '''
                             export KUBECONFIG=${KUBECONFIG_FILE}
-                            kubectl wait --for=condition=available --timeout=60s deployment/boardgame-deployment
-                            kubectl get pods -o wide | grep boardgame
+                            #kubectl wait --for=condition=available --timeout=60s deployment/boardgame-deployment
+                            #kubectl get pods -o wide | grep boardgame
+                            # Короткое ожидание готовности
+                            kubectl wait --for=condition=ready \
+                            pod -l app=boardgame,managed-by=argocd \
+                            -n production \
+                            --timeout=60s                            
                         '''
                     }
                 }
