@@ -1,5 +1,5 @@
 #### Создайте новый репозиторий Boardgame-gitops (например https://github.com/<yourname>/Boardgame-gitops)
-- Скопируйте туда директори apps, base, overlays
+- Скопируйте туда директори apps, base, overlays в корень
 - Переименуйте файл jenkinsfile(version with argo) в jenkinsfile
 - Замените jenkinsfile в репозитории проекта Boardgame - https://github.com/<yourname>/Boardgame)
 - Запустите pipeline в jenkins чтобы он выполнил этапы из нового файла jenkinsfile
