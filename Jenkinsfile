@@ -156,6 +156,7 @@ pipeline {
                     echo "✅ Quality Gate status: ${qg.status}"
                     if (qg.status != 'OK') {
                         echo "⚠️ Warning: Quality Gate status is '${qg.status}', continuing pipeline anyway."
+                        }
                 }
             }
         }
