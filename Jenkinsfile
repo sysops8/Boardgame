@@ -41,7 +41,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 echo "Checking out source code..."
@@ -148,16 +147,13 @@ pipeline {
                 }
             }
         }
-        // Для этой стадии нужно настроить вебхук в SonarQube для jenkins. 
-        // Зайлите на SonarQube -> Administration -> Projects -> Managment -> configuration -> webhooks -> 
-        // URL link: http://jenkins.local.lab:8080/sonarqube-webhook/
-        stage('SonarQube Quality Gate') {   
-        steps {
+
+        stage('SonarQube Quality Gate') {
+            steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
-                                                    }
-              }
-        }
+                }
+            }
         }
 
         stage('Update GitOps Repository') {
@@ -222,7 +218,7 @@ pipeline {
                 }
             }
         }
-    
+    }
 
     post {
         success {
@@ -257,5 +253,4 @@ The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
             cleanWs()
         }
     }
-}
 }
