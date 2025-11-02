@@ -241,25 +241,65 @@ pipeline {
 
     post {
         success {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "✅ SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: """
-                The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.
+                def appUrl = "http://boardgame.local.lab"
+                def argocdUrl = "https://${ARGOCD_SERVER}/applications/boardgame"
                 
-                📦 Deployment Details:
-                - Image: ${HARBOR_URL}/${HARBOR_PROJECT}/${MY_APP}:${env.BUILD_NUMBER}
-                - ArgoCD Application: ${MY_APP}
-                - GitOps Repository: ${GITOPS_REPO}
+                echo "🎉 Pipeline completed successfully!"
+                echo "📧 Sending success notification..."
                 
-                🔗 Links:
-                - Build URL: ${env.BUILD_URL}
-                - ArgoCD UI: https://${ARGOCD_SERVER}
-                - Application: https://boardgame.local.lab
-                """
+                emailext(
+                    subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <h2 style="color: #28a745;">🎉 Pipeline Executed Successfully!</h2>
+                            <table style="border-collapse: collapse; width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">#${env.BUILD_NUMBER}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Docker Image:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${IMAGE_NAME}:${IMAGE_TAG}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Application:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${appUrl}">${appUrl}</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>ArgoCD:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${argocdUrl}">${argocdUrl}</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build URL:</strong></td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">
+                                        <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin-top: 20px;">
+                                <strong>Deployed by ArgoCD via GitOps</strong><br>
+                                GitOps Repo: ${GITOPS_REPO}
+                            </p>
+                        </body>
+                        </html>
+                    """,
+                    to: EMAIL_RECIPIENTS,
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'trivy-report.txt'
+                )
         }
         failure {
-                echo "❌ Pipeline failed!"
-                emailext(
+                    echo "❌ Pipeline failed!"
+                    emailext(
                     subject: "❌ FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     body: """
                         <html>
@@ -290,7 +330,7 @@ pipeline {
                     """,
                     to: EMAIL_RECIPIENTS,
                     mimeType: 'text/html'
-                )
+                    )
         }
         unstable {
             mail to: "${EMAIL_RECIPIENTS}",
