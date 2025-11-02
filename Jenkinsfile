@@ -155,8 +155,9 @@ pipeline {
         steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
-                }
-            }
+                                                    }
+              }
+        }
         }
 
         stage('Update GitOps Repository') {
