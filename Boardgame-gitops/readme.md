@@ -1,4 +1,4 @@
-# Создайте новый репозиторий Boardgame-gitops для gitops (например https://github.com/<yourname>/Boardgame-gitops)
+#### Создайте новый репозиторий Boardgame-gitops для gitops (например https://github.com/<yourname>/Boardgame-gitops)
 - Скопируйте туда директори apps, base, overlays
 - Переименуйте файл jenkinsfile(version with argo) в jenkinsfile
 - Замените jenkinsfile в репозитории проекта Boardgame - https://github.com/<yourname>/Boardgame)
