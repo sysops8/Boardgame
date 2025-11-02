@@ -217,9 +217,25 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
+                    echo "✅ Verifying deployment in Kubernetes..."
                     sh """
-                        export KUBECONFIG=${KUBECONFIG_FILE}
-                        kubectl rollout status deployment/boardgame-deployment
+                        #export KUBECONFIG=${KUBECONFIG_FILE}
+                        #kubectl rollout status deployment/boardgame-deployment    
+                        echo "Checking pods..."
+                        kubectl get pods -n production -l app=boardgame -o wide
+                        
+                        echo "Checking deployment rollout status..."
+                        kubectl rollout status deployment/boardgame-deployment -n production --timeout=300s
+                        
+                        echo "Checking services..."
+                        kubectl get svc -n production -l app=boardgame
+                        
+                        echo "Checking replica status..."
+                        kubectl get deployment boardgame-deployment -n production -o jsonpath='{.status.availableReplicas}/{.status.replicas} pods available'
+                        echo ""
+                    """
+
+                        
                     """
                 }
             }
