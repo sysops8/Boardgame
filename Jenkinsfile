@@ -150,8 +150,12 @@ pipeline {
 
         stage('SonarQube Quality Gate') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
+                timeout(time: 1, unit: 'MINUTES') {                    
+                    //Waiting webhook from SonarQube
+                    def qg = waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
+                    echo "✅ Quality Gate status: ${qg.status}"
+                    if (qg.status != 'OK') {
+                        echo "⚠️ Warning: Quality Gate status is '${qg.status}', continuing pipeline anyway."
                 }
             }
         }
