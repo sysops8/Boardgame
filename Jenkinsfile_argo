@@ -416,7 +416,8 @@ stage('Diagnose Pod Issues') {
                     to: EMAIL_RECIPIENTS,
                     mimeType: 'text/html',
                     attachmentsPattern: 'trivy-report.txt'
-                )
+                    )
+                }
             }
         }
         
