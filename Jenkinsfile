@@ -156,7 +156,7 @@ pipeline {
                     waitForQualityGate abortPipeline: false, credentialsId: "${SONARQUBE_CREDENTIALS}"
                 }
             }
-        }
+        
 
         stage('Update GitOps Repository') {
             steps {
