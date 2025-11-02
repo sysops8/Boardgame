@@ -3,6 +3,7 @@ pipeline {
     environment { 
         // AppName
         MY_APP = 'boardgame'
+        
         // Harbor
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
@@ -109,7 +110,6 @@ pipeline {
                                 
                                 # Обновляем версию образа в базовых манифестах
                                 echo "=== Обновляем версию образа ==="
-                                #sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' base/boardgame/kustomization.yaml
                                 sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' ${GITOPS_KUSTOMIZATION_PATH}
                                 echo "=== Обновленное содержимое apps/boardgame/kustomization.yaml ==="
                                 cat ${GITOPS_KUSTOMIZATION_PATH}
