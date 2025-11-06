@@ -119,7 +119,10 @@ pipeline {
                     echo "🩺 Checking application health..."
                     withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
                         sh '''
-                            kubectl wait --for=condition=ready pod -l app=boardgame -n default --timeout=60s   
+                            export KUBECONFIG=${KUBECONFIG_FILE}
+                            kubectl wait --for=condition=available --timeout=60s deployment/boardgame-deployment
+                            kubectl get pods -o wide | grep boardgame
+                            kubectl wait --for=condition=ready pod -l app=boardgame -n default --timeout=60s  
                         '''
                     }
                 }
