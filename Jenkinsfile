@@ -11,7 +11,7 @@ pipeline {
 
         // Nexus
         NEXUS_URL = "http://nexus.local.lab:8081/repository/maven-releases/"
-        NEXUS_CREDENTIALS = "nexus-cred"
+        NEXUS_CREDENTIALS = "nexus-creds"
 
         // SonarQube
         SONARQUBE_SERVER = "SonarQube"
