@@ -87,7 +87,7 @@ pipeline {
         
                     // Используем безопасную оболочку без Groovy-интерполяции
                     sh '''
-                        IMAGE_TAG="${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${BUILD_NUMBER}"
+                        IMAGE_TAG="${HARBOR_URL}/${HARBOR_PROJECT}/boardgame:${BUILD_NUMBER}"
                         if [ ! -f k8s_deployment-service.yaml ]; then
                             echo "❌ File k8s_deployment-service.yaml not found!"
                             exit 1
