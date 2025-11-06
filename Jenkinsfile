@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     environment {
+        MYAPP = "boardgame"
         // Harbor
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
@@ -40,7 +41,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}")
+                    dockerImage = docker.build("${HARBOR_URL}/${HARBOR_PROJECT}/${MYAPP}:${env.BUILD_NUMBER}")
                 }
             }
         }
@@ -82,7 +83,7 @@ pipeline {
         stage('Update K8s Manifest') {
             steps {
                 script {
-                    echo "📝 Updating Kubernetes manifest with image: ${HARBOR_URL}/${HARBOR_PROJECT}/myapp:${env.BUILD_NUMBER}"
+                    echo "📝 Updating Kubernetes manifest with image: ${HARBOR_URL}/${HARBOR_PROJECT}/${MYAPP}:${env.BUILD_NUMBER}"
         
                     // Используем безопасную оболочку без Groovy-интерполяции
                     sh '''
