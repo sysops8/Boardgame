@@ -93,7 +93,8 @@ pipeline {
                             exit 1
                         fi
                         echo "Updating image to: $IMAGE_TAG"
-                        sed -i "0,/image:/s|image: .*|image: $IMAGE_TAG|" k8s_deployment-service.yaml
+                        #sed -i "0,/image:/s|image: .*|image: $IMAGE_TAG|" k8s_deployment-service.yaml
+                        sed -i 's|newTag:.*|newTag: "'${BUILD_NUMBER}'"|g' k8s_deployment-service.yaml
                         echo "✅ Manifest updated successfully:"
                         grep "image:" k8s_deployment-service.yaml
                     '''
