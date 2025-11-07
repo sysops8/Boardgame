@@ -7,7 +7,12 @@ pipeline {
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
         HARBOR_CREDENTIALS = "harbor-creds"
-
+        //Harbor image name
+        IMAGE_NAME = 'boardgame'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        FULL_IMAGE_NAME = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+        LATEST_IMAGE_NAME = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:latest"
+        
         // Nexus
         NEXUS_URL = "http://nexus.local.lab:8081/repository/maven-releases/"
         NEXUS_CREDENTIALS = "nexus-creds"
@@ -22,6 +27,8 @@ pipeline {
 
         // Email
         EMAIL_RECIPIENTS = "almastvx@gmail.com"
+
+
     }
 
     stages {
