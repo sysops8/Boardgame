@@ -171,7 +171,6 @@ pipeline {
                 }
                 
                 success {
-                    def appUrl = "http://boardgame.local.lab"
                     echo "🎉 Pipeline completed successfully!"
                     echo "📧 Sending success notification..."              
                     
