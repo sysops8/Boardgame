@@ -236,7 +236,7 @@ pipeline {
                             </body>
                             </html>
                         """,
-                        to: ${env.EMAIL_RECIPIENTS},
+                        to: "${env.EMAIL_RECIPIENTS}",
                         mimeType: 'text/html'
                     )
                 }
