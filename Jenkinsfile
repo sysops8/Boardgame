@@ -35,6 +35,7 @@ pipeline {
         steps {
             script {
                 sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
+                mvn clean install -P autoInstallPackage -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
             }
         }
     }
@@ -42,6 +43,7 @@ pipeline {
             steps {
                 script {
                     dockerImage = docker.build("${HARBOR_URL}/${HARBOR_PROJECT}/${MYAPP}:${env.BUILD_NUMBER}")
+                    
                 }
             }
         }
