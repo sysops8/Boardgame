@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         MYAPP = "boardgame"
+
         // Harbor
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
@@ -27,7 +28,7 @@ pipeline {
         KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
 
         // Email
-        EMAIL_RECIPIENTS = "almastvx@gmail.com"
+        EMAIL_RECIPIENTS = "almastvx@gmail.com"        
 
 
     }
@@ -196,7 +197,7 @@ pipeline {
                                     <tr>
                                         <td style="padding: 8px; border: 1px solid #ddd;"><strong>Application URL:</strong></td>
                                         <td style="padding: 8px; border: 1px solid #ddd;">
-                                            <a href="https://boardgame.apps.your-domain.com">https://boardgame.apps.your-domain.com</a>
+                                            <a href="https://boardgame.apps.local.lab">https://boardgame.apps.local.lab</a>
                                         </td>
                                     </tr>
                                     <tr>
