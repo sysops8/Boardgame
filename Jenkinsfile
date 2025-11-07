@@ -172,6 +172,8 @@ pipeline {
                 
                 success {
                     def appUrl = "http://boardgame.local.lab"
+                    echo "🎉 Pipeline completed successfully!"
+                    echo "📧 Sending success notification..."              
                     
                     emailext(
                         subject: "✅ Pipeline Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
