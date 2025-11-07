@@ -152,24 +152,93 @@ pipeline {
         }
     }
 
-    post {
-        success {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "✅ SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' completed successfully.\nBuild URL: ${env.BUILD_URL}"
-        }
-        failure {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "❌ FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed.\nBuild URL: ${env.BUILD_URL}"
-        }
-        unstable {
-            mail to: "${EMAIL_RECIPIENTS}",
-                subject: "⚠️ UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: "The Jenkins job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' is unstable.\nBuild URL: ${env.BUILD_URL}"
-        }
-        always {
-            cleanWs()
-        }
-    }
+        post {
+                always {
+                    // Архивация артефактов
+                    archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'trivy-*-report.html', allowEmptyArchive: true
+                    
+                    // Очистка workspace
+                    cleanWs()
+                }
+                
+                success {
+                    emailext(
+                        subject: "✅ Pipeline Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """
+                            <html>
+                            <body style="font-family: Arial, sans-serif;">
+                                <h2 style="color: #28a745;">🎉 Pipeline Executed Successfully!</h2>
+                                <table style="border-collapse: collapse; width: 100%;">
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build Number:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${env.BUILD_NUMBER}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Docker Image:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${FULL_IMAGE_NAME}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Application URL:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">
+                                            <a href="https://boardgame.apps.your-domain.com">https://boardgame.apps.your-domain.com</a>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build URL:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">
+                                            <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="margin-top: 20px;">Check the attached Trivy security report for details.</p>
+                            </body>
+                            </html>
+                        """,
+                        to: 'your-email@example.com',
+                        mimeType: 'text/html',
+                        attachmentsPattern: 'trivy-image-report.html'
+                    )
+                }
+                
+                failure {
+                    emailext(
+                        subject: "❌ Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """
+                            <html>
+                            <body style="font-family: Arial, sans-serif;">
+                                <h2 style="color: #dc3545;">❌ Pipeline Execution Failed!</h2>
+                                <table style="border-collapse: collapse; width: 100%;">
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Job:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${env.JOB_NAME}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Build Number:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${env.BUILD_NUMBER}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Failed Stage:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${env.STAGE_NAME}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>Console Output:</strong></td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">
+                                            <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="margin-top: 20px; color: #dc3545;">Please check the console output for detailed error information.</p>
+                            </body>
+                            </html>
+                        """,
+                        to: 'your-email@example.com',
+                        mimeType: 'text/html'
+                    )
+                }
+            }
 }
