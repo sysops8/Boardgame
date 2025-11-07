@@ -199,7 +199,7 @@ pipeline {
                             </body>
                             </html>
                         """,
-                        to: 'your-email@example.com',
+                        to: EMAIL_RECIPIENTS,
                         mimeType: 'text/html',
                         attachmentsPattern: 'trivy-image-report.html'
                     )
@@ -236,7 +236,7 @@ pipeline {
                             </body>
                             </html>
                         """,
-                        to: "${env.EMAIL_RECIPIENTS}",
+                        to: EMAIL_RECIPIENTS,
                         mimeType: 'text/html'
                     )
                 }
