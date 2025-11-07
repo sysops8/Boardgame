@@ -7,7 +7,8 @@ pipeline {
         HARBOR_URL = "harbor.local.lab"
         HARBOR_PROJECT = "library"
         HARBOR_CREDENTIALS = "harbor-creds"
-        //Harbor image name
+        
+        // Harbor image name
         IMAGE_NAME = 'boardgame'
         IMAGE_TAG = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
@@ -170,6 +171,8 @@ pipeline {
                 }
                 
                 success {
+                    def appUrl = "http://boardgame.local.lab"
+                    
                     emailext(
                         subject: "✅ Pipeline Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                         body: """
