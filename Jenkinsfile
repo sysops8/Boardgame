@@ -34,8 +34,7 @@ pipeline {
     stage('Set Build Version') {
         steps {
             script {
-                sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"
-                mvn clean install -P autoInstallPackage -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
+                sh "mvn versions:set -DnewVersion=0.0.${env.BUILD_NUMBER}"                
             }
         }
     }
