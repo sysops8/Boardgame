@@ -35,13 +35,6 @@ pipeline {
         IMAGE_NAME = "${HARBOR_URL}/${HARBOR_PROJECT}/boardgame"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
 
-        // Tools
-        SCANNER_HOME = tool 'sonar-scanner'
-    }
-
-    tools {
-        jdk 'java17'
-        maven 'maven3.6'
     }
 
     stages {
