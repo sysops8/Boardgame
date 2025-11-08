@@ -17,7 +17,7 @@ pipeline {
         SONARQUBE_SERVER = "SonarQube"
         SONARQUBE_URL = "http://sonar.local.lab:9000"
         SONARQUBE_CREDENTIALS = "sonar-token"
-
+        SCANNER_HOME = tool 'sonar-scanner'
         // Kubernetes
         KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
 
@@ -34,6 +34,7 @@ pipeline {
         // Image 
         IMAGE_NAME = "${HARBOR_URL}/${HARBOR_PROJECT}/boardgame"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+       
 
     }
 
