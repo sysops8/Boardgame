@@ -216,7 +216,7 @@ pipeline {
                     sh """
                         echo "✅ Verifying deployment in Kubernetes..."
                         export KUBECONFIG=${KUBECONFIG_FILE}
-                        kubectl rollout status deployment/boardgame-deployment    
+                        kubectl rollout status deployment/boardgame-deployment  -n production 
                         echo "Checking pods..."
                         kubectl get pods -n production -l app=boardgame -o wide
                         
