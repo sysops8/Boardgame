@@ -191,15 +191,13 @@ pipeline {
                 script {
                     echo "🩺 Checking application health..."
                     withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                        sh '''
+                        sh '''                
                             export KUBECONFIG=${KUBECONFIG_FILE}
-                            #kubectl wait --for=condition=available --timeout=60s deployment/boardgame-deployment
-                            #kubectl get pods -o wide | grep boardgame
                             # Короткое ожидание готовности
                             kubectl wait --for=condition=ready \
                             pod -l app=boardgame,managed-by=argocd \
                             -n production \
-                            --timeout=60s                            
+                            --timeout=60s  
                         '''
                     }
                 }
@@ -211,8 +209,8 @@ pipeline {
                 withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {                    
                     sh """
                         echo "✅ Verifying deployment in Kubernetes..."
-                        #export KUBECONFIG=${KUBECONFIG_FILE}
-                        #kubectl rollout status deployment/boardgame-deployment    
+                        export KUBECONFIG=${KUBECONFIG_FILE}
+                        kubectl rollout status deployment/boardgame-deployment    
                         echo "Checking pods..."
                         kubectl get pods -n production -l app=boardgame -o wide
                         
