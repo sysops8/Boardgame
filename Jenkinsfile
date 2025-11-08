@@ -137,7 +137,7 @@ pipeline {
             steps {
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
                     sh """
-                        ${SCANNER_HOME}/bin/sonar-scanner \
+                        mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL} \
                         -Dsonar.projectName=${MY_APP} \
                         -Dsonar.projectKey=${MY_APP} \
                         -Dsonar.host.url=${SONARQUBE_URL} \
