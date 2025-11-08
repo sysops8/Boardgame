@@ -17,7 +17,7 @@ pipeline {
         SONARQUBE_SERVER = "SonarQube"
         SONARQUBE_URL = "http://sonar.local.lab:9000"
         SONARQUBE_CREDENTIALS = "sonar-token"
-        SCANNER_HOME = tool 'sonar-scanner'
+        
         // Kubernetes
         KUBECONFIG_CREDENTIALS = "k8s-kubeconfig"
 
@@ -133,16 +133,10 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh """
-                        ${SCANNER_HOME}/bin/sonar-scanner \
-                        -Dsonar.projectName=${MY_APP} \
-                        -Dsonar.projectKey=${MY_APP} \
-                        -Dsonar.host.url=${SONARQUBE_URL} \
-                        -Dsonar.java.binaries=target/classes
-                    """
+                    sh "mvn sonar:sonar -Dsonar.host.url=${SONARQUBE_URL}"
                 }
             }
         }
